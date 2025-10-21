@@ -1,0 +1,7 @@
+{
+  "tasks": [
+    { "text": "Buy milk", "done": false },
+    { "text": "Call Alice", "done": true }
+  ],
+  "theme": "Nord"
+}

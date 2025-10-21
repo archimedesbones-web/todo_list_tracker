@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.spec
+
+# Virtual environments
+venv/
+.env/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Data files (don't commit user data)
+/data/
+
+# IDE/editor folders
+.vscode/
+.idea/
+
+# Logs
+*.log
