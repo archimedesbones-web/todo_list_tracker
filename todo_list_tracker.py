@@ -3,7 +3,7 @@ Todo List Tracker v1.02
 A comprehensive task management application with AI assistance, multiple views, and advanced features.
 """
 
-__version__ = "1.02"
+__version__ = "1.025"
 __author__ = "Task Manager Pro"
 __date__ = "2025-10-23"
 
@@ -137,6 +137,29 @@ class TodoApp:
 		
 		# Load custom themes from file
 		self._load_themes_from_file()
+		
+		# Initialize XP system
+		self.xp = 0
+		self.level = 1
+		self.tasks_completed = 0
+		self.XP_PER_TASK = 10
+		self.unlocked_items = set()
+		self.pets = []  # List of active pets {"type": str, "x": int, "y": int, "direction": str}
+		self.STARTER_PETS = ["pet_cat", "pet_dog"]
+		
+		# Define unlock thresholds (level -> unlockable items)
+		self.UNLOCKS = {
+			2: ["hat_wizard", "pet_cat"],
+			3: ["shirt_leather_jacket"],
+			4: ["pants_camo"],
+			5: ["hat_sombrero", "pet_dog"],
+			7: ["shirt_tuxedo"],
+			8: ["pet_bird"],
+			10: ["hat_viking", "pants_rainbow"],
+			12: ["shirt_superhero"],
+			15: ["pet_dragon", "hat_halo"],
+			20: ["shirt_gold", "pants_gold"]
+		}
 
 		# Theme selector frame
 		theme_frame = tk.Frame(root)
@@ -163,6 +186,8 @@ class TodoApp:
 		self.ai_tasks_tab = tk.Frame(self.notebook)
 		# New Settings tab
 		self.settings_tab = tk.Frame(self.notebook)
+		# New Avatar Room tab
+		self.avatar_room_tab = tk.Frame(self.notebook)
 		self.notebook.add(self.tasks_tab, text="Tasks")
 		self.notebook.add(self.daily_tab, text="Daily")
 		self.notebook.add(self.ai_tasks_tab, text="AI Tasks")
@@ -170,6 +195,7 @@ class TodoApp:
 		self.notebook.add(self.calendar_tab, text="Calendar")
 		self.notebook.add(self.theme_editor_tab, text="Themes")
 		self.notebook.add(self.settings_tab, text="Settings")
+		self.notebook.add(self.avatar_room_tab, text="Avatar Room")
 		
 		# Enable tab dragging
 		self._drag_data = {"tab": None, "x": 0}
@@ -402,6 +428,9 @@ class TodoApp:
 
 		# ===== SETTINGS TAB =====
 		self._setup_settings_tab()
+
+		# ===== AVATAR ROOM TAB =====
+		self._setup_avatar_room_tab()
 
 		# Initial load and theme
 		self.load_tasks(startup=True)
@@ -1309,6 +1338,612 @@ class TodoApp:
 		"""Save settings and show confirmation."""
 		self._save_settings()
 		messagebox.showinfo("Settings", "Settings saved successfully!")
+	
+	def _setup_avatar_room_tab(self):
+		"""Set up the Avatar Room tab with customizable avatar and virtual environment."""
+		# Initialize avatar state
+		self._avatar_state = {
+			"x": 300,  # Center x position
+			"y": 250,  # Center y position
+			"direction": "down",  # down, up, left, right
+			"hat": "baseball_cap",
+			"shirt": "t_shirt_blue",
+			"pants": "jeans_blue"
+		}
+		
+		# Load saved avatar settings if they exist
+		if hasattr(self, 'settings') and 'avatar' in self.settings:
+			self._avatar_state.update(self.settings['avatar'])
+		# Load saved XP data
+		if hasattr(self, 'settings'):
+			self.xp = self.settings.get('xp', 0)
+			self.level = self.settings.get('level', 1)
+			self.tasks_completed = self.settings.get('tasks_completed', 0)
+			self.unlocked_items = set(self.settings.get('unlocked_items', []))
+			self.pets = self.settings.get('pets', [])
+		
+		
+		# Main container
+		main_frame = tk.Frame(self.avatar_room_tab)
+		main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+		
+		# Title
+		title_label = tk.Label(main_frame, text="🎮 Avatar Room", font=("", 14, "bold"))
+		title_label.pack(pady=(0, 10))
+		# XP and Level Display
+		xp_frame = tk.Frame(main_frame)
+		xp_frame.pack(fill="x", pady=(0, 10))
+		
+		# Level and Stats
+		stats_text = f"Level {self.level} | Tasks Completed: {self.tasks_completed} | XP: {self.xp}"
+		self.xp_stats_label = tk.Label(xp_frame, text=stats_text, font=("", 10, "bold"))
+		self.xp_stats_label.pack(pady=(0, 5))
+		
+		# XP Progress Bar
+		xp_bar_frame = tk.Frame(xp_frame)
+		xp_bar_frame.pack(fill="x", padx=50)
+		
+		self.xp_bar_canvas = tk.Canvas(xp_bar_frame, height=25, bg="#e0e0e0", highlightthickness=1, highlightbackground="#888")
+		self.xp_bar_canvas.pack(fill="x")
+		
+		self._update_xp_display()
+		
+		
+		# Create two columns: canvas on left, customization on right
+		content_frame = tk.Frame(main_frame)
+		content_frame.pack(fill="both", expand=True)
+		
+		# Left side - Canvas for room
+		canvas_frame = tk.Frame(content_frame)
+		canvas_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
+		
+		canvas_label = tk.Label(canvas_frame, text="Your Avatar Room (Use Arrow Keys to Move)", font=("", 10))
+		canvas_label.pack(pady=(0, 5))
+		
+		# Canvas for rendering room and avatar
+		self.avatar_canvas = tk.Canvas(canvas_frame, width=600, height=400, bg="#f0f0f0", highlightthickness=2)
+		self.avatar_canvas.pack()
+		
+		# Right side - Customization controls
+		custom_frame = tk.Frame(content_frame, width=250)
+		custom_frame.pack(side="right", fill="y")
+		custom_frame.pack_propagate(False)
+		
+		# Customization title
+		custom_title = tk.Label(custom_frame, text="Customize Avatar", font=("", 12, "bold"))
+		custom_title.pack(pady=(0, 15))
+		
+		# Hat selection
+		hat_frame = tk.LabelFrame(custom_frame, text="Hat", padx=10, pady=10)
+		hat_frame.pack(fill="x", pady=(0, 10))
+		
+		self.hat_var = tk.StringVar(value=self._avatar_state["hat"])
+		hat_options = [
+			("Baseball Cap", "baseball_cap", None),
+			("Beanie", "beanie", None),
+			("Top Hat", "top_hat", None),
+			("Crown", "crown", None),
+			("Wizard Hat", "hat_wizard", "hat_wizard"),
+			("Sombrero", "hat_sombrero", "hat_sombrero"),
+			("Viking Helmet", "hat_viking", "hat_viking"),
+			("Halo", "hat_halo", "hat_halo"),
+			("No Hat", "none", None)
+		]
+		for text, value, unlock_key in hat_options:
+			is_locked = unlock_key is not None and unlock_key not in self.unlocked_items
+			label = f"{text} (Locked)" if is_locked else text
+			state = tk.DISABLED if is_locked else tk.NORMAL
+			rb = tk.Radiobutton(hat_frame, text=label, variable=self.hat_var, value=value,
+						   command=self._update_avatar_clothing, state=state)
+			rb.pack(anchor="w")
+		
+		# Shirt selection
+		shirt_frame = tk.LabelFrame(custom_frame, text="Shirt", padx=10, pady=10)
+		shirt_frame.pack(fill="x", pady=(0, 10))
+		
+		self.shirt_var = tk.StringVar(value=self._avatar_state["shirt"])
+		shirt_options = [
+			("Blue T-Shirt", "t_shirt_blue", None),
+			("Red T-Shirt", "t_shirt_red", None),
+			("Green Hoodie", "hoodie_green", None),
+			("Yellow Polo", "polo_yellow", None),
+			("Purple Sweater", "sweater_purple", None),
+			("Leather Jacket", "shirt_leather_jacket", "shirt_leather_jacket"),
+			("Tuxedo", "shirt_tuxedo", "shirt_tuxedo"),
+			("Superhero", "shirt_superhero", "shirt_superhero"),
+			("Gold Shirt", "shirt_gold", "shirt_gold")
+		]
+		for text, value, unlock_key in shirt_options:
+			is_locked = unlock_key is not None and unlock_key not in self.unlocked_items
+			label = f"{text} (Locked)" if is_locked else text
+			state = tk.DISABLED if is_locked else tk.NORMAL
+			rb = tk.Radiobutton(shirt_frame, text=label, variable=self.shirt_var, value=value,
+						   command=self._update_avatar_clothing, state=state)
+			rb.pack(anchor="w")
+		
+		# Pants selection
+		pants_frame = tk.LabelFrame(custom_frame, text="Pants", padx=10, pady=10)
+		pants_frame.pack(fill="x", pady=(0, 10))
+		
+		self.pants_var = tk.StringVar(value=self._avatar_state["pants"])
+		pants_options = [
+			("Blue Jeans", "jeans_blue", None),
+			("Black Jeans", "jeans_black", None),
+			("Khaki Pants", "khaki", None),
+			("Gray Joggers", "joggers_gray", None),
+			("Red Shorts", "shorts_red", None),
+			("Camo Pants", "pants_camo", "pants_camo"),
+			("Rainbow Pants", "pants_rainbow", "pants_rainbow"),
+			("Gold Pants", "pants_gold", "pants_gold")
+		]
+		for text, value, unlock_key in pants_options:
+			is_locked = unlock_key is not None and unlock_key not in self.unlocked_items
+			label = f"{text} (Locked)" if is_locked else text
+			state = tk.DISABLED if is_locked else tk.NORMAL
+			rb = tk.Radiobutton(pants_frame, text=label, variable=self.pants_var, value=value,
+						   command=self._update_avatar_clothing, state=state)
+			rb.pack(anchor="w")
+
+		# Pets selection
+		pets_frame = tk.LabelFrame(custom_frame, text="Pets", padx=10, pady=10)
+		pets_frame.pack(fill="x", pady=(0, 10))
+
+		self.pet_vars = {}
+		present_types = set(p.get("type") for p in (self.pets or []))
+		pet_options = [
+			("Cat", "pet_cat", None),  # Starter
+			("Dog", "pet_dog", None),  # Starter
+			("Bird", "pet_bird", "pet_bird"),
+			("Dragon", "pet_dragon", "pet_dragon")
+		]
+		for text, pet_key, unlock_key in pet_options:
+			is_starter = unlock_key is None and pet_key in self.STARTER_PETS
+			is_unlocked = is_starter or (unlock_key in self.unlocked_items if unlock_key else True)
+			label = f"{text} (Locked)" if not is_unlocked else text
+			state = tk.NORMAL if is_unlocked else tk.DISABLED
+			var = tk.BooleanVar(value=(pet_key in present_types))
+			self.pet_vars[pet_key] = var
+			cb = tk.Checkbutton(pets_frame, text=label, variable=var, state=state,
+						   command=lambda k=pet_key: self._toggle_pet(k))
+			cb.pack(anchor="w")
+		
+		# Movement instructions
+		instructions = tk.Label(custom_frame, text="\n⌨️ Controls:\n↑ ↓ ← → Arrow Keys\nto move around",
+							   justify="center", font=("", 9))
+		instructions.pack(pady=10)
+		
+		# Bind keyboard controls
+		self.avatar_canvas.bind("<Up>", lambda e: self._move_avatar("up"))
+		self.avatar_canvas.bind("<Down>", lambda e: self._move_avatar("down"))
+		self.avatar_canvas.bind("<Left>", lambda e: self._move_avatar("left"))
+		self.avatar_canvas.bind("<Right>", lambda e: self._move_avatar("right"))
+		self.avatar_canvas.focus_set()
+		
+		# Initial room and avatar rendering
+		self._draw_avatar_room()
+		# Start pet animation if pets exist
+		if getattr(self, 'pets', []):
+			self._animate_pets()
+	def _update_xp_display(self):
+		"""Update the XP progress bar and stats display."""
+		if not hasattr(self, 'xp_bar_canvas'):
+			return
+		
+		# Update stats text
+		stats_text = f"Level {self.level} | Tasks Completed: {self.tasks_completed} | XP: {self.xp}"
+		self.xp_stats_label.configure(text=stats_text)
+		
+		# Draw XP bar
+		canvas = self.xp_bar_canvas
+		canvas.delete("all")
+		
+		width = canvas.winfo_width()
+		if width <= 1:  # Canvas not yet rendered
+			width = 500
+		
+		# Calculate XP progress within current level
+		xp_for_current_level = (self.level - 1) * 100
+		xp_for_next_level = self.level * 100
+		xp_in_level = self.xp - xp_for_current_level
+		xp_needed_in_level = 100
+		progress = xp_in_level / xp_needed_in_level
+		
+		# Draw background
+		canvas.create_rectangle(0, 0, width, 25, fill="#e0e0e0", outline="")
+		
+		# Draw progress bar
+		bar_width = int(width * progress)
+		# Gradient effect - darker at start, lighter at end
+		canvas.create_rectangle(0, 0, bar_width, 25, fill="#4CAF50", outline="")
+		canvas.create_rectangle(0, 0, bar_width, 12, fill="#66BB6A", outline="")
+		
+		# Draw text showing XP progress
+		text = f"{xp_in_level} / {xp_needed_in_level} XP"
+		canvas.create_text(width//2, 12, text=text, font=("", 10, "bold"), fill="#000000")
+	
+	
+	def _draw_avatar_room(self):
+		"""Draw the virtual room environment and avatar."""
+		canvas = self.avatar_canvas
+		canvas.delete("all")  # Clear canvas
+		
+		# Draw floor
+		canvas.create_rectangle(0, 0, 600, 400, fill="#e8dcc0", outline="")
+		
+		# Draw floor tiles for depth effect
+		for y in range(0, 400, 40):
+			canvas.create_line(0, y, 600, y, fill="#d4c5a9", width=1)
+		for x in range(0, 600, 40):
+			canvas.create_line(x, 0, x, 400, fill="#d4c5a9", width=1)
+		
+		# Draw walls
+		# Back wall
+		canvas.create_rectangle(0, 0, 600, 80, fill="#a8a8a8", outline="#808080", width=2)
+		# Side walls (perspective)
+		canvas.create_polygon(0, 0, 50, 50, 50, 350, 0, 400, fill="#8c8c8c", outline="#606060", width=2)
+		canvas.create_polygon(600, 0, 550, 50, 550, 350, 600, 400, fill="#8c8c8c", outline="#606060", width=2)
+		
+		# Draw furniture/decorations
+		# Plant in corner
+		canvas.create_oval(70, 300, 110, 340, fill="#6b8e23", outline="#556b2f", width=2)
+		canvas.create_rectangle(85, 340, 95, 360, fill="#8b4513", outline="#654321", width=1)
+		
+		# Table
+		canvas.create_rectangle(450, 280, 530, 300, fill="#8b4513", outline="#654321", width=2)
+		canvas.create_rectangle(460, 300, 470, 340, fill="#654321", outline="#4a2f1a", width=1)
+		canvas.create_rectangle(510, 300, 520, 340, fill="#654321", outline="#4a2f1a", width=1)
+		
+		# Window on back wall
+		canvas.create_rectangle(250, 15, 350, 55, fill="#87ceeb", outline="#4682b4", width=3)
+		canvas.create_line(300, 15, 300, 55, fill="#4682b4", width=2)
+		canvas.create_line(250, 35, 350, 35, fill="#4682b4", width=2)
+		
+		# Draw avatar
+		self._draw_avatar()
+		# Draw pets on top
+		self._draw_pets()
+	
+	def _draw_avatar(self):
+		"""Draw the avatar character with current clothing."""
+		canvas = self.avatar_canvas
+		x = self._avatar_state["x"]
+		y = self._avatar_state["y"]
+		
+		# Get clothing colors
+		shirt_colors = {
+			"t_shirt_blue": "#4169e1",
+			"t_shirt_red": "#dc143c",
+			"hoodie_green": "#32cd32",
+			"polo_yellow": "#ffd700",
+			"sweater_purple": "#9370db",
+			# Unlockable shirts
+			"shirt_leather_jacket": "#3b2f2f",
+			"shirt_tuxedo": "#111111",
+			"shirt_superhero": "#ff0000",
+			"shirt_gold": "#daa520"
+		}
+		pants_colors = {
+			"jeans_blue": "#1e90ff",
+			"jeans_black": "#2f2f2f",
+			"khaki": "#c3b091",
+			"joggers_gray": "#808080",
+			"shorts_red": "#ff6347",
+			# Unlockable pants
+			"pants_camo": "#556b2f",
+			"pants_rainbow": "#ff69b4",  # approximate
+			"pants_gold": "#b8860b"
+		}
+		
+		shirt_color = shirt_colors.get(self._avatar_state["shirt"], "#4169e1")
+		pants_color = pants_colors.get(self._avatar_state["pants"], "#1e90ff")
+		
+		# Shadow (using gray instead of transparent black)
+		canvas.create_oval(x - 25, y + 45, x + 25, y + 55, fill="#c0c0c0", outline="")
+		
+		# Legs (pants)
+		if "shorts" in self._avatar_state["pants"]:
+			# Shorts - shorter legs
+			canvas.create_rectangle(x - 12, y + 15, x - 2, y + 35, fill=pants_color, outline="#000000", width=1)
+			canvas.create_rectangle(x + 2, y + 15, x + 12, y + 35, fill=pants_color, outline="#000000", width=1)
+			# Lower legs showing
+			canvas.create_rectangle(x - 12, y + 35, x - 2, y + 50, fill="#fdbcb4", outline="#000000", width=1)
+			canvas.create_rectangle(x + 2, y + 35, x + 12, y + 50, fill="#fdbcb4", outline="#000000", width=1)
+		else:
+			# Full pants
+			canvas.create_rectangle(x - 12, y + 15, x - 2, y + 50, fill=pants_color, outline="#000000", width=1)
+			canvas.create_rectangle(x + 2, y + 15, x + 12, y + 50, fill=pants_color, outline="#000000", width=1)
+		
+		# Shoes
+		canvas.create_oval(x - 15, y + 48, x - 5, y + 54, fill="#000000", outline="#000000")
+		canvas.create_oval(x + 5, y + 48, x + 15, y + 54, fill="#000000", outline="#000000")
+		
+		# Body (shirt)
+		canvas.create_rectangle(x - 18, y - 10, x + 18, y + 20, fill=shirt_color, outline="#000000", width=2)
+		
+		# Arms
+		canvas.create_rectangle(x - 25, y - 5, x - 18, y + 15, fill=shirt_color, outline="#000000", width=1)
+		canvas.create_rectangle(x + 18, y - 5, x + 25, y + 15, fill=shirt_color, outline="#000000", width=1)
+		# Hands
+		canvas.create_oval(x - 28, y + 12, x - 20, y + 20, fill="#fdbcb4", outline="#000000", width=1)
+		canvas.create_oval(x + 20, y + 12, x + 28, y + 20, fill="#fdbcb4", outline="#000000", width=1)
+		
+		# Neck
+		canvas.create_rectangle(x - 6, y - 15, x + 6, y - 10, fill="#fdbcb4", outline="#000000", width=1)
+		
+		# Head
+		canvas.create_oval(x - 15, y - 40, x + 15, y - 15, fill="#fdbcb4", outline="#000000", width=2)
+		
+		# Face
+		# Eyes
+		canvas.create_oval(x - 8, y - 32, x - 4, y - 28, fill="#000000", outline="")
+		canvas.create_oval(x + 4, y - 32, x + 8, y - 28, fill="#000000", outline="")
+		# Smile
+		canvas.create_arc(x - 6, y - 28, x + 6, y - 20, start=200, extent=140, outline="#000000", width=2, style="arc")
+		
+		# Hat
+		hat = self._avatar_state["hat"]
+		if hat == "baseball_cap":
+			# Cap top
+			canvas.create_arc(x - 16, y - 45, x + 16, y - 30, start=0, extent=180, fill="#ff4500", outline="#000000", width=2, style="pieslice")
+			# Bill
+			canvas.create_polygon(x - 16, y - 37, x - 25, y - 35, x - 25, y - 33, x - 16, y - 35, fill="#ff4500", outline="#000000", width=1)
+		elif hat == "beanie":
+			canvas.create_arc(x - 16, y - 48, x + 16, y - 28, start=0, extent=180, fill="#4b0082", outline="#000000", width=2, style="pieslice")
+			canvas.create_oval(x - 3, y - 48, x + 3, y - 42, fill="#9370db", outline="#000000", width=1)  # Pom-pom
+		elif hat == "top_hat":
+			canvas.create_rectangle(x - 12, y - 55, x + 12, y - 40, fill="#000000", outline="#000000", width=2)
+			canvas.create_rectangle(x - 16, y - 42, x + 16, y - 38, fill="#000000", outline="#000000", width=2)
+		elif hat == "crown":
+			# Crown base
+			canvas.create_rectangle(x - 14, y - 45, x + 14, y - 38, fill="#ffd700", outline="#ff8c00", width=2)
+			# Crown points
+			canvas.create_polygon(x - 14, y - 45, x - 10, y - 50, x - 6, y - 45, fill="#ffd700", outline="#ff8c00", width=1)
+			canvas.create_polygon(x - 4, y - 45, x, y - 52, x + 4, y - 45, fill="#ffd700", outline="#ff8c00", width=1)
+			canvas.create_polygon(x + 6, y - 45, x + 10, y - 50, x + 14, y - 45, fill="#ffd700", outline="#ff8c00", width=1)
+			# Jewels
+			canvas.create_oval(x - 2, y - 42, x + 2, y - 40, fill="#ff0000", outline="")
+		elif hat == "hat_wizard":
+			# Wizard hat (purple cone with brim)
+			canvas.create_polygon(x - 8, y - 45, x, y - 65, x + 8, y - 45, fill="#6a0dad", outline="#000000", width=2)
+			canvas.create_oval(x - 14, y - 42, x + 14, y - 38, fill="#4b0082", outline="#000000", width=2)
+		elif hat == "hat_sombrero":
+			# Sombrero (wide brim, small top)
+			canvas.create_oval(x - 20, y - 40, x + 20, y - 36, fill="#d2b48c", outline="#000000", width=2)
+			canvas.create_arc(x - 10, y - 50, x + 10, y - 34, start=0, extent=180, fill="#f4a460", outline="#000000", width=2, style="pieslice")
+		elif hat == "hat_viking":
+			# Viking helmet (gray with horns)
+			canvas.create_arc(x - 16, y - 45, x + 16, y - 30, start=0, extent=180, fill="#c0c0c0", outline="#000000", width=2, style="pieslice")
+			canvas.create_polygon(x - 16, y - 40, x - 26, y - 55, x - 20, y - 40, fill="#fff8dc", outline="#000000", width=1)
+			canvas.create_polygon(x + 16, y - 40, x + 26, y - 55, x + 20, y - 40, fill="#fff8dc", outline="#000000", width=1)
+		elif hat == "hat_halo":
+			# Halo (golden ring above head)
+			canvas.create_oval(x - 12, y - 58, x + 12, y - 54, fill="#ffd700", outline="#ff8c00", width=2)
+		# If hat == "none", draw nothing
+	
+	def _draw_pets(self):
+		"""Draw all pets in the room."""
+		if not hasattr(self, 'pets'):
+			return
+		canvas = self.avatar_canvas
+		for pet in self.pets:
+			x, y = pet.get("x", 100), pet.get("y", 100)
+			ptype = pet.get("type", "pet_cat")
+			if ptype == "pet_cat":
+				# Body
+				canvas.create_oval(x - 12, y - 8, x + 12, y + 8, fill="#ffa500", outline="#000000")
+				# Head
+				canvas.create_oval(x + 8, y - 10, x + 20, y + 2, fill="#ffa500", outline="#000000")
+				# Ears
+				canvas.create_polygon(x + 10, y - 10, x + 14, y - 16, x + 18, y - 10, fill="#ffdab9", outline="#000000")
+				# Tail
+				canvas.create_arc(x - 20, y - 10, x - 4, y + 10, start=200, extent=140, style="arc", outline="#000000", width=2)
+			elif ptype == "pet_dog":
+				canvas.create_oval(x - 14, y - 9, x + 14, y + 9, fill="#8b4513", outline="#000000")
+				canvas.create_oval(x + 6, y - 10, x + 20, y + 4, fill="#a0522d", outline="#000000")
+				canvas.create_polygon(x + 8, y - 8, x + 12, y - 14, x + 10, y - 6, fill="#8b4513", outline="#000000")
+			elif ptype == "pet_bird":
+				canvas.create_oval(x - 8, y - 8, x + 8, y + 8, fill="#87ceeb", outline="#000000")
+				canvas.create_polygon(x + 6, y, x + 12, y - 2, x + 12, y + 2, fill="#ffa500", outline="#000000")
+			elif ptype == "pet_dragon":
+				canvas.create_oval(x - 16, y - 10, x + 16, y + 10, fill="#228b22", outline="#000000")
+				canvas.create_polygon(x - 8, y - 10, x, y - 20, x + 8, y - 10, fill="#006400", outline="#000000")
+				canvas.create_polygon(x - 16, y, x - 24, y - 4, x - 24, y + 4, fill="#006400", outline="#000000")
+			else:
+				# Default small pet
+				canvas.create_oval(x - 6, y - 6, x + 6, y + 6, fill="#cccccc", outline="#000000")
+
+	def _move_avatar(self, direction):
+		"""Move avatar in the specified direction."""
+		step = 10
+		x = self._avatar_state["x"]
+		y = self._avatar_state["y"]
+		
+		# Update position based on direction
+		if direction == "up":
+			y = max(70, y - step)  # Don't go into wall
+		elif direction == "down":
+			y = min(350, y + step)  # Don't go past floor
+		elif direction == "left":
+			x = max(60, x - step)  # Don't go into left wall
+		elif direction == "right":
+			x = min(540, x + step)  # Don't go into right wall
+		
+		# Update state
+		self._avatar_state["x"] = x
+		self._avatar_state["y"] = y
+		self._avatar_state["direction"] = direction
+		
+		# Redraw room
+		self._draw_avatar_room()
+		
+		# Save avatar position
+		self._save_avatar_state()
+	
+	def _update_avatar_clothing(self):
+		"""Update avatar clothing based on selection."""
+		selected_hat = self.hat_var.get()
+		selected_shirt = self.shirt_var.get()
+		selected_pants = self.pants_var.get()
+		
+		# Guard against selecting locked items
+		locked = []
+		if selected_hat.startswith("hat_") and selected_hat not in self.unlocked_items:
+			locked.append("Hat")
+			self.hat_var.set(self._avatar_state.get("hat", "none"))
+		else:
+			self._avatar_state["hat"] = selected_hat
+		
+		if selected_shirt.startswith("shirt_") and selected_shirt not in self.unlocked_items:
+			locked.append("Shirt")
+			self.shirt_var.set(self._avatar_state.get("shirt", "t_shirt_blue"))
+		else:
+			self._avatar_state["shirt"] = selected_shirt
+		
+		if selected_pants.startswith("pants_") and selected_pants not in self.unlocked_items:
+			locked.append("Pants")
+			self.pants_var.set(self._avatar_state.get("pants", "jeans_blue"))
+		else:
+			self._avatar_state["pants"] = selected_pants
+		
+		if locked:
+			messagebox.showinfo("Locked", f"These items are locked: {', '.join(locked)}\nLevel up to unlock them!")
+		
+		# Redraw room
+		self._draw_avatar_room()
+		
+		# Save avatar state
+		self._save_avatar_state()
+	
+	def _save_avatar_state(self):
+		"""Save avatar state to settings."""
+		if not hasattr(self, 'settings'):
+			self.settings = {}
+		self.settings['avatar'] = self._avatar_state.copy()
+	def _award_xp(self, amount):
+		"""Award XP and check for level up and unlocks."""
+		old_level = self.level
+		self.xp += amount
+		self.tasks_completed += amount // self.XP_PER_TASK
+		
+		# Calculate level (100 XP per level)
+		self.level = 1 + (self.xp // 100)
+		
+		# Check for level up
+		if self.level > old_level:
+			self._on_level_up(old_level, self.level)
+		
+		# Save XP state
+		if not hasattr(self, 'settings'):
+			self.settings = {}
+		self.settings['xp'] = self.xp
+		self.settings['level'] = self.level
+		self.settings['tasks_completed'] = self.tasks_completed
+		self.settings['unlocked_items'] = list(self.unlocked_items)
+		self.settings['pets'] = self.pets
+		self._save_settings()
+		
+		# Update avatar room display if it exists
+		if hasattr(self, 'xp_bar_canvas'):
+			self._update_xp_display()
+	
+	def _on_level_up(self, old_level, new_level):
+		"""Handle level up - check for unlocks and show notification."""
+		unlocked_this_level = []
+		
+		# Check all levels from old to new for unlocks
+		for level in range(old_level + 1, new_level + 1):
+			if level in self.UNLOCKS:
+				for item in self.UNLOCKS[level]:
+					if item not in self.unlocked_items:
+						self.unlocked_items.add(item)
+						unlocked_this_level.append(item)
+						
+						# Auto-equip first pet
+						if item.startswith("pet_") and len(self.pets) == 0:
+							self._add_pet(item)
+		
+		# Show unlock notification
+		if unlocked_this_level:
+			unlock_text = "\n".join([f"🎁 {item.replace('_', ' ').title()}" for item in unlocked_this_level])
+			messagebox.showinfo(
+				f"🎉 Level {new_level} Reached!",
+				f"Congratulations!\n\nYou've unlocked:\n{unlock_text}\n\nCheck the Avatar Room!"
+			)
+	
+	def _add_pet(self, pet_type):
+		"""Add a new pet to the avatar room."""
+		# Initialize pet in a random position
+		import random
+		pet = {
+			"type": pet_type,
+			"x": random.randint(100, 500),
+			"y": random.randint(100, 300),
+			"direction": random.choice(["left", "right"])
+		}
+		self.pets.append(pet)
+		self._save_pets_state()
+		
+		# Start pet animation if avatar room is active
+		if hasattr(self, 'avatar_canvas'):
+			self._animate_pets()
+
+	def _save_pets_state(self):
+		"""Persist pets to settings."""
+		if not hasattr(self, 'settings'):
+			self.settings = {}
+		self.settings['pets'] = self.pets
+		self._save_settings()
+
+	def _toggle_pet(self, pet_key):
+		"""Toggle a pet on/off based on UI checkbox."""
+		present_types = set(p.get("type") for p in (self.pets or []))
+		want = bool(self.pet_vars.get(pet_key).get())
+		if want and pet_key not in present_types:
+			self._add_pet(pet_key)
+			self._draw_avatar_room()
+		elif not want and pet_key in present_types:
+			self.pets = [p for p in self.pets if p.get("type") != pet_key]
+			self._save_pets_state()
+			self._draw_avatar_room()
+			# Stop animation if no pets left
+			if not self.pets and hasattr(self, '_avatar_animation_id'):
+				try:
+					self.avatar_canvas.after_cancel(self._avatar_animation_id)
+				except Exception:
+					pass
+	
+	def _animate_pets(self):
+		"""Animate pets walking around the room."""
+		if not hasattr(self, 'avatar_canvas'):
+			return
+		
+		import random
+		
+		for pet in self.pets:
+			# Random movement
+			if random.random() < 0.3:  # 30% chance to change direction
+				pet["direction"] = random.choice(["left", "right", "up", "down"])
+			
+			# Move in current direction
+			step = 2
+			if pet["direction"] == "left":
+				pet["x"] = max(60, pet["x"] - step)
+			elif pet["direction"] == "right":
+				pet["x"] = min(540, pet["x"] + step)
+			elif pet["direction"] == "up":
+				pet["y"] = max(70, pet["y"] - step)
+			elif pet["direction"] == "down":
+				pet["y"] = min(350, pet["y"] + step)
+		
+		# Redraw room with pets
+		if hasattr(self, '_avatar_animation_id'):
+			self.avatar_canvas.after_cancel(self._avatar_animation_id)
+		self._draw_avatar_room()
+		
+		# Continue animation
+		self._avatar_animation_id = self.avatar_canvas.after(100, self._animate_pets)
+	
+		self._save_settings()
 	
 	def _setup_ai_tasks_tab(self):
 		"""Set up the AI Tasks tab with chat interface for task generation."""
@@ -2312,7 +2947,7 @@ class TodoApp:
 									  fg=self.current_theme["fg"])
 		
 		# Also apply theme to widgets in notebook tabs
-		for tab_frame in [self.tasks_tab, self.daily_tab, self.ai_tasks_tab, self.stats_tab, self.calendar_tab, self.theme_editor_tab, self.settings_tab]:
+		for tab_frame in [self.tasks_tab, self.daily_tab, self.ai_tasks_tab, self.stats_tab, self.calendar_tab, self.theme_editor_tab, self.settings_tab, self.avatar_room_tab]:
 			# Use solid background for tab frames to avoid any overlap issues with content
 			tab_bg = self.current_theme.get("bg", "#ffffff")
 			# If a previous gradient canvas exists, remove it to prevent covering content
@@ -2357,6 +2992,12 @@ class TodoApp:
 										 activebackground=self.current_theme["bg"],
 										 activeforeground=self.current_theme["fg"],
 										 selectcolor=self.current_theme["button_bg"])
+						elif isinstance(child, tk.Checkbutton):
+							child.configure(bg=self.current_theme["bg"],
+									 fg=self.current_theme["fg"],
+									 activebackground=self.current_theme["bg"],
+									 activeforeground=self.current_theme["fg"],
+									 selectcolor=self.current_theme["button_bg"])
 				elif isinstance(widget, tk.Canvas):
 					# For canvas widgets, we draw gradients during render functions
 					widget.configure(bg=self.current_theme.get("bg", "#ffffff"))
@@ -3813,6 +4454,9 @@ class TodoApp:
 		self._update_calendar_view()
 
 	def toggle_complete(self):
+		# Track XP gains
+		xp_gained = 0
+		
 		selection = self.tree.selection()
 		if not selection:
 			return
@@ -3825,6 +4469,9 @@ class TodoApp:
 			self.tree.item(it, values=(new_val, priority, deadline))
 			# Stats adjustment
 			if new_val == "[x]":
+				# Award XP for completing task
+				nonlocal xp_gained
+				xp_gained += self.XP_PER_TASK
 				# mark completion today
 				meta = self.task_meta.setdefault(it, {"last_completed_date": None})
 				# If previously completed on another day and now re-completing, we don't auto-decrement past day here
@@ -3860,6 +4507,10 @@ class TodoApp:
 		
 		for cat in categories_to_update:
 			self._update_category_count(cat)
+
+		# Award XP and check for level up
+		if xp_gained > 0:
+			self._award_xp(xp_gained)
 		self._update_stats_view()
 		# Apply alternating rows after toggling tasks
 		self._apply_alternating_rows()

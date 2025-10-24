@@ -1,5 +1,36 @@
 # Changelog - Todo List Tracker
 
+## Version 1.025 (2025-10-23)
+
+### 🆕 New Features
+- Avatar Room tab with a virtual room scene and a customizable avatar (hats, shirts, pants)
+- Movement controls with arrow keys and boundary collision
+- XP System: earn 10 XP per task; Level = 1 + floor(XP/100); stats persist
+- XP UI shown in Avatar Room: level, tasks completed, and XP progress bar
+- Unlocks tied to levels (cosmetics and pets):
+  - L2: Wizard Hat, Pet Cat
+  - L3: Leather Jacket
+  - L4: Camo Pants
+  - L5: Sombrero, Pet Dog
+  - L7: Tuxedo
+  - L8: Pet Bird
+  - L10: Viking Helmet, Rainbow Pants
+  - L12: Superhero Shirt
+  - L15: Pet Dragon, Halo
+  - L20: Gold Shirt, Gold Pants
+- Pets system with simple animations (Cat, Dog, Bird, Dragon)
+- Pets UI in Avatar Room: starter pets (Cat, Dog) available from level 1; unlockable pets labeled (Locked)
+
+### 🎨 Enhancements
+- Theme application extended to Avatar Room, including Checkbuttons styling
+- Clothing UI disables locked items and shows (Locked) labels until unlocked
+
+### 🐛 Fixes
+- Replaced invalid hex alpha color in Tk with solid gray for avatar shadow
+- Fixed toggle_complete loop structure and integrated XP awarding
+
+---
+
 ## Version 1.02 (2025-10-23)
 
 ### 🆕 New Features
