@@ -14,12 +14,21 @@ from datetime import date, timedelta
 import tkinter as tk
 from tkinter import simpledialog, filedialog, messagebox, ttk
 
-# Import avatar systems (Fast 3D, Real 3D, True 3D, Simple 3D, and Enhanced 2D)
+# Import avatar systems (Optimized 3D, Fast 3D, Real 3D, True 3D, Simple 3D, and Enhanced 2D)
+AVATAR_OPTIMIZED_3D_AVAILABLE = False
 AVATAR_FAST_3D_AVAILABLE = False
 AVATAR_REAL_3D_AVAILABLE = False
 AVATAR_TRUE_3D_AVAILABLE = False
 AVATAR_3D_AVAILABLE = False
 AVATAR_ENHANCED_2D_AVAILABLE = False
+
+try:
+	from avatar_optimized_3d import Optimized3DAvatar
+	AVATAR_OPTIMIZED_3D_AVAILABLE = True
+	print("✅ OPTIMIZED 3D Avatar system loaded (ultra-fast 60 FPS)")
+except ImportError as e:
+	print(f"Optimized 3D Avatar not available: {e}")
+	AVATAR_OPTIMIZED_3D_AVAILABLE = False
 
 try:
 	from avatar_fast_3d import Fast3DClayAvatar
@@ -57,12 +66,13 @@ try:
 except ImportError as e:
 	print(f"Enhanced 2D Avatar not available: {e}")
 
-# Avatar system preference order: Fast 3D > Real 3D > True 3D > Enhanced 2D > Simple 3D > Basic 2D
-USE_FAST_3D = AVATAR_FAST_3D_AVAILABLE
-USE_REAL_3D = AVATAR_REAL_3D_AVAILABLE and not USE_FAST_3D
-USE_TRUE_3D = AVATAR_TRUE_3D_AVAILABLE and not USE_FAST_3D and not USE_REAL_3D
-USE_ENHANCED_2D = AVATAR_ENHANCED_2D_AVAILABLE and not USE_FAST_3D and not USE_REAL_3D and not USE_TRUE_3D
-USE_SIMPLE_3D = AVATAR_3D_AVAILABLE and not USE_FAST_3D and not USE_REAL_3D and not USE_TRUE_3D and not USE_ENHANCED_2D
+# Avatar system preference order: Optimized 3D > Fast 3D > Real 3D > True 3D > Enhanced 2D > Simple 3D > Basic 2D
+USE_OPTIMIZED_3D = AVATAR_OPTIMIZED_3D_AVAILABLE
+USE_FAST_3D = AVATAR_FAST_3D_AVAILABLE and not USE_OPTIMIZED_3D
+USE_REAL_3D = AVATAR_REAL_3D_AVAILABLE and not USE_OPTIMIZED_3D and not USE_FAST_3D
+USE_TRUE_3D = AVATAR_TRUE_3D_AVAILABLE and not USE_OPTIMIZED_3D and not USE_FAST_3D and not USE_REAL_3D
+USE_ENHANCED_2D = AVATAR_ENHANCED_2D_AVAILABLE and not USE_OPTIMIZED_3D and not USE_FAST_3D and not USE_REAL_3D and not USE_TRUE_3D
+USE_SIMPLE_3D = AVATAR_3D_AVAILABLE and not USE_OPTIMIZED_3D and not USE_FAST_3D and not USE_REAL_3D and not USE_TRUE_3D and not USE_ENHANCED_2D
 
 def get_app_dir():
 	if getattr(sys, 'frozen', False):
@@ -1447,8 +1457,16 @@ class TodoApp:
 		canvas_frame = tk.Frame(content_frame)
 		canvas_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
 		
-		# Choose avatar system (Fast 3D > Real 3D > True 3D > Enhanced 2D > Simple 3D > Basic 2D fallback)
-		if USE_FAST_3D and AVATAR_FAST_3D_AVAILABLE:
+		# Choose avatar system (Optimized 3D > Fast 3D > Real 3D > True 3D > Enhanced 2D > Simple 3D > Basic 2D fallback)
+		if USE_OPTIMIZED_3D and AVATAR_OPTIMIZED_3D_AVAILABLE:
+			canvas_label = tk.Label(canvas_frame, text="⚡ ULTRA-FAST 3D AVATAR ROOM (60 FPS Blender-Style)", font=("", 12, "bold"), fg="#e74c3c")
+			canvas_label.pack(pady=(0, 5))
+			
+			# Create OPTIMIZED 3D avatar widget with ultra-fast rendering
+			self.avatar_3d_widget = Optimized3DAvatar(canvas_frame)
+			self.avatar_3d_widget.pack(fill="both", expand=True)
+			self.avatar_canvas = None
+		elif USE_FAST_3D and AVATAR_FAST_3D_AVAILABLE:
 			canvas_label = tk.Label(canvas_frame, text="🌟 CHIBI 3D AVATAR ROOM (Animal Crossing Style)", font=("", 12, "bold"), fg="#e67e22")
 			canvas_label.pack(pady=(0, 5))
 			

@@ -1,0 +1,56 @@
+# Simple Room OBJ File
+# Generated for 3D avatar project
+
+# Vertices (x, y, z coordinates)
+# Floor vertices (trapezoid shape like /-----\)
+v -2.0 0.0 -1.0    # Front left
+v 2.0 0.0 -1.0     # Front right
+v 3.0 0.0 3.0      # Back right
+v -3.0 0.0 3.0     # Back left
+
+# Ceiling vertices (same shape, elevated)
+v -2.0 2.5 -1.0    # Front left ceiling
+v 2.0 2.5 -1.0     # Front right ceiling
+v 3.0 2.5 3.0      # Back right ceiling
+v -3.0 2.5 3.0     # Back left ceiling
+
+# Texture coordinates (optional, for UV mapping)
+vt 0.0 0.0
+vt 1.0 0.0
+vt 1.0 1.0
+vt 0.0 1.0
+
+# Vertex normals
+vn 0.0 1.0 0.0     # Up (for floor and ceiling)
+vn 0.0 -1.0 0.0    # Down
+vn 0.0 0.0 1.0     # Forward
+vn 0.0 0.0 -1.0    # Backward
+vn 1.0 0.0 0.0     # Right
+vn -1.0 0.0 0.0    # Left
+vn 0.707 0.0 0.707  # Diagonal right wall
+vn -0.707 0.0 0.707 # Diagonal left wall
+
+# Faces (triangles)
+# Floor (facing up)
+f 1//1 2//1 3//1
+f 1//1 3//1 4//1
+
+# Ceiling (facing down)
+f 5//2 7//2 6//2
+f 5//2 8//2 7//2
+
+# Front wall
+f 1//4 5//4 6//4
+f 1//4 6//4 2//4
+
+# Back wall
+f 3//3 7//3 8//3
+f 3//3 8//3 4//3
+
+# Left diagonal wall (like "\")
+f 4//8 8//8 5//8
+f 4//8 5//8 1//8
+
+# Right diagonal wall (like "/")
+f 2//7 6//7 7//7
+f 2//7 7//7 3//7
