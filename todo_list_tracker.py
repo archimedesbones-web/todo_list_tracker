@@ -3,9 +3,9 @@ Todo List Tracker v1.02
 A comprehensive task management application with AI assistance, multiple views, and advanced features.
 """
 
-__version__ = "1.025"
+__version__ = "1.03"
 __author__ = "Task Manager Pro"
-__date__ = "2025-10-23"
+__date__ = "2025-10-24"
 
 import os
 import sys
@@ -13,6 +13,56 @@ import json
 from datetime import date, timedelta
 import tkinter as tk
 from tkinter import simpledialog, filedialog, messagebox, ttk
+
+# Import avatar systems (Fast 3D, Real 3D, True 3D, Simple 3D, and Enhanced 2D)
+AVATAR_FAST_3D_AVAILABLE = False
+AVATAR_REAL_3D_AVAILABLE = False
+AVATAR_TRUE_3D_AVAILABLE = False
+AVATAR_3D_AVAILABLE = False
+AVATAR_ENHANCED_2D_AVAILABLE = False
+
+try:
+	from avatar_fast_3d import Fast3DClayAvatar
+	AVATAR_FAST_3D_AVAILABLE = True
+	print("✅ FAST 3D Avatar system loaded (optimized canvas)")
+except ImportError as e:
+	print(f"Fast 3D Avatar not available: {e}")
+
+try:
+	from avatar_real_3d import Real3DClayAvatar
+	AVATAR_REAL_3D_AVAILABLE = True
+	print("✅ Real 3D Avatar system loaded (matplotlib)")
+except ImportError as e:
+	print(f"Real 3D Avatar not available: {e}")
+
+try:
+	from avatar_true_3d import True3DClayAvatar
+	AVATAR_TRUE_3D_AVAILABLE = True
+	print("✅ True 3D Avatar system loaded (OpenGL)")
+except Exception as e:
+	print(f"True 3D Avatar not available: {e}")
+	AVATAR_TRUE_3D_AVAILABLE = False
+
+try:
+	from avatar_3d_simple import SimpleTkinterAvatar3DWidget
+	AVATAR_3D_AVAILABLE = True
+	print("✅ Simple 3D Avatar system loaded (Panda3D)")
+except ImportError as e:
+	print(f"Simple 3D Avatar not available: {e}")
+
+try:
+	from avatar_enhanced_2d import MockAvatar3DWidget
+	AVATAR_ENHANCED_2D_AVAILABLE = True
+	print("✅ Enhanced 2D Avatar system loaded")
+except ImportError as e:
+	print(f"Enhanced 2D Avatar not available: {e}")
+
+# Avatar system preference order: Fast 3D > Real 3D > True 3D > Enhanced 2D > Simple 3D > Basic 2D
+USE_FAST_3D = AVATAR_FAST_3D_AVAILABLE
+USE_REAL_3D = AVATAR_REAL_3D_AVAILABLE and not USE_FAST_3D
+USE_TRUE_3D = AVATAR_TRUE_3D_AVAILABLE and not USE_FAST_3D and not USE_REAL_3D
+USE_ENHANCED_2D = AVATAR_ENHANCED_2D_AVAILABLE and not USE_FAST_3D and not USE_REAL_3D and not USE_TRUE_3D
+USE_SIMPLE_3D = AVATAR_3D_AVAILABLE and not USE_FAST_3D and not USE_REAL_3D and not USE_TRUE_3D and not USE_ENHANCED_2D
 
 def get_app_dir():
 	if getattr(sys, 'frozen', False):
@@ -1393,16 +1443,59 @@ class TodoApp:
 		content_frame = tk.Frame(main_frame)
 		content_frame.pack(fill="both", expand=True)
 		
-		# Left side - Canvas for room
+		# Left side - Avatar display (3D or 2D fallback)
 		canvas_frame = tk.Frame(content_frame)
 		canvas_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
 		
-		canvas_label = tk.Label(canvas_frame, text="Your Avatar Room (Use Arrow Keys to Move)", font=("", 10))
-		canvas_label.pack(pady=(0, 5))
-		
-		# Canvas for rendering room and avatar
-		self.avatar_canvas = tk.Canvas(canvas_frame, width=600, height=400, bg="#f0f0f0", highlightthickness=2)
-		self.avatar_canvas.pack()
+		# Choose avatar system (Fast 3D > Real 3D > True 3D > Enhanced 2D > Simple 3D > Basic 2D fallback)
+		if USE_FAST_3D and AVATAR_FAST_3D_AVAILABLE:
+			canvas_label = tk.Label(canvas_frame, text="🌟 CHIBI 3D AVATAR ROOM (Animal Crossing Style)", font=("", 12, "bold"), fg="#e67e22")
+			canvas_label.pack(pady=(0, 5))
+			
+			# Create FAST 3D avatar widget with optimized canvas
+			self.avatar_3d_widget = Fast3DClayAvatar(canvas_frame)
+			self.avatar_3d_widget.pack(fill="both", expand=True)
+			self.avatar_canvas = None
+		elif USE_REAL_3D and AVATAR_REAL_3D_AVAILABLE:
+			canvas_label = tk.Label(canvas_frame, text="🚀 REAL 3D CLAYMATION AVATAR ROOM", font=("", 12, "bold"), fg="#e74c3c")
+			canvas_label.pack(pady=(0, 5))
+			
+			# Create REAL 3D avatar widget with matplotlib
+			self.avatar_3d_widget = Real3DClayAvatar(canvas_frame)
+			self.avatar_3d_widget.pack(fill="both", expand=True)
+			self.avatar_canvas = None
+		elif USE_TRUE_3D and AVATAR_TRUE_3D_AVAILABLE:
+			canvas_label = tk.Label(canvas_frame, text="🎮 TRUE 3D CLAYMATION AVATAR ROOM", font=("", 10, "bold"), fg="#e74c3c")
+			canvas_label.pack(pady=(0, 5))
+			
+			# Create TRUE 3D avatar widget with OpenGL
+			self.avatar_3d_widget = True3DClayAvatar(canvas_frame)
+			self.avatar_3d_widget.pack(fill="both", expand=True)
+			self.avatar_canvas = None
+		elif USE_ENHANCED_2D and AVATAR_ENHANCED_2D_AVAILABLE:
+			canvas_label = tk.Label(canvas_frame, text="🎨 Enhanced Claymation Avatar Room", font=("", 10, "bold"))
+			canvas_label.pack(pady=(0, 5))
+			
+			# Create enhanced 2D avatar widget  
+			self.avatar_3d_widget = MockAvatar3DWidget(canvas_frame)
+			self.avatar_3d_widget.pack(fill="both", expand=True)
+			self.avatar_canvas = None
+		elif USE_SIMPLE_3D and AVATAR_3D_AVAILABLE:
+			canvas_label = tk.Label(canvas_frame, text="🎮 3D Claymation Avatar Room", font=("", 10, "bold"))
+			canvas_label.pack(pady=(0, 5))
+			
+			# Create simple 3D avatar widget
+			self.avatar_3d_widget = SimpleTkinterAvatar3DWidget(canvas_frame)
+			self.avatar_3d_widget.pack(fill="both", expand=True)
+			self.avatar_canvas = None
+		else:
+			canvas_label = tk.Label(canvas_frame, text="Your Avatar Room (Use Arrow Keys to Move)", font=("", 10))
+			canvas_label.pack(pady=(0, 5))
+			
+			# Fallback to basic 2D canvas
+			self.avatar_canvas = tk.Canvas(canvas_frame, width=600, height=400, bg="#f0f0f0", highlightthickness=2)
+			self.avatar_canvas.pack()
+			self.avatar_3d_widget = None
 		
 		# Right side - Customization controls
 		custom_frame = tk.Frame(content_frame, width=250)
@@ -1512,18 +1605,28 @@ class TodoApp:
 							   justify="center", font=("", 9))
 		instructions.pack(pady=10)
 		
-		# Bind keyboard controls
-		self.avatar_canvas.bind("<Up>", lambda e: self._move_avatar("up"))
-		self.avatar_canvas.bind("<Down>", lambda e: self._move_avatar("down"))
-		self.avatar_canvas.bind("<Left>", lambda e: self._move_avatar("left"))
-		self.avatar_canvas.bind("<Right>", lambda e: self._move_avatar("right"))
-		self.avatar_canvas.focus_set()
+		# Bind keyboard controls (enhanced 2D, 3D, or basic 2D)
+		if hasattr(self, 'avatar_3d_widget') and self.avatar_3d_widget:
+			# Enhanced 2D or 3D widget - bind to main frame
+			canvas_frame.bind("<Up>", lambda e: self._move_avatar("up"))
+			canvas_frame.bind("<Down>", lambda e: self._move_avatar("down"))
+			canvas_frame.bind("<Left>", lambda e: self._move_avatar("left"))
+			canvas_frame.bind("<Right>", lambda e: self._move_avatar("right"))
+			canvas_frame.focus_set()
+		elif self.avatar_canvas:
+			# 2D canvas controls
+			self.avatar_canvas.bind("<Up>", lambda e: self._move_avatar("up"))
+			self.avatar_canvas.bind("<Down>", lambda e: self._move_avatar("down"))
+			self.avatar_canvas.bind("<Left>", lambda e: self._move_avatar("left"))
+			self.avatar_canvas.bind("<Right>", lambda e: self._move_avatar("right"))
+			self.avatar_canvas.focus_set()
 		
 		# Initial room and avatar rendering
-		self._draw_avatar_room()
-		# Start pet animation if pets exist
-		if getattr(self, 'pets', []):
-			self._animate_pets()
+		if not (hasattr(self, 'avatar_3d_widget') and self.avatar_3d_widget):
+			self._draw_avatar_room()
+			# Start pet animation if pets exist (basic 2D only)
+			if getattr(self, 'pets', []):
+				self._animate_pets()
 	def _update_xp_display(self):
 		"""Update the XP progress bar and stats display."""
 		if not hasattr(self, 'xp_bar_canvas'):
@@ -1563,7 +1666,10 @@ class TodoApp:
 	
 	
 	def _draw_avatar_room(self):
-		"""Draw the virtual room environment and avatar."""
+		"""Draw the virtual room environment and avatar (2D mode only)."""
+		# Only draw if using 2D canvas
+		if not self.avatar_canvas:
+			return
 		canvas = self.avatar_canvas
 		canvas.delete("all")  # Clear canvas
 		
@@ -1754,27 +1860,35 @@ class TodoApp:
 
 	def _move_avatar(self, direction):
 		"""Move avatar in the specified direction."""
-		step = 10
-		x = self._avatar_state["x"]
-		y = self._avatar_state["y"]
-		
-		# Update position based on direction
-		if direction == "up":
-			y = max(70, y - step)  # Don't go into wall
-		elif direction == "down":
-			y = min(350, y + step)  # Don't go past floor
-		elif direction == "left":
-			x = max(60, x - step)  # Don't go into left wall
-		elif direction == "right":
-			x = min(540, x + step)  # Don't go into right wall
-		
 		# Update state
-		self._avatar_state["x"] = x
-		self._avatar_state["y"] = y
 		self._avatar_state["direction"] = direction
 		
-		# Redraw room
-		self._draw_avatar_room()
+		# Use enhanced 2D, 3D, or basic 2D movement
+		if hasattr(self, 'avatar_3d_widget') and self.avatar_3d_widget:
+			# Use enhanced 2D or 3D widget movement
+			self.avatar_3d_widget.move_avatar(direction)
+		else:
+			# Use 2D movement
+			step = 10
+			x = self._avatar_state["x"]
+			y = self._avatar_state["y"]
+			
+			# Update position based on direction
+			if direction == "up":
+				y = max(70, y - step)  # Don't go into wall
+			elif direction == "down":
+				y = min(350, y + step)  # Don't go past floor
+			elif direction == "left":
+				x = max(60, x - step)  # Don't go into left wall
+			elif direction == "right":
+				x = min(540, x + step)  # Don't go into right wall
+			
+			# Update state
+			self._avatar_state["x"] = x
+			self._avatar_state["y"] = y
+			
+			# Redraw 2D room
+			self._draw_avatar_room()
 		
 		# Save avatar position
 		self._save_avatar_state()
@@ -1808,8 +1922,13 @@ class TodoApp:
 		if locked:
 			messagebox.showinfo("Locked", f"These items are locked: {', '.join(locked)}\nLevel up to unlock them!")
 		
-		# Redraw room
-		self._draw_avatar_room()
+		# Update avatar appearance (enhanced 2D, 3D, or basic 2D)
+		if hasattr(self, 'avatar_3d_widget') and self.avatar_3d_widget:
+			# Update enhanced 2D or 3D avatar
+			self.avatar_3d_widget.update_avatar_state(self._avatar_state)
+		else:
+			# Redraw 2D room
+			self._draw_avatar_room()
 		
 		# Save avatar state
 		self._save_avatar_state()
@@ -1900,17 +2019,25 @@ class TodoApp:
 		want = bool(self.pet_vars.get(pet_key).get())
 		if want and pet_key not in present_types:
 			self._add_pet(pet_key)
-			self._draw_avatar_room()
+			# Update enhanced 2D, 3D, or basic 2D display
+			if hasattr(self, 'avatar_3d_widget') and self.avatar_3d_widget:
+				self.avatar_3d_widget.add_pet(pet_key)
+			else:
+				self._draw_avatar_room()
 		elif not want and pet_key in present_types:
 			self.pets = [p for p in self.pets if p.get("type") != pet_key]
 			self._save_pets_state()
-			self._draw_avatar_room()
-			# Stop animation if no pets left
-			if not self.pets and hasattr(self, '_avatar_animation_id'):
-				try:
-					self.avatar_canvas.after_cancel(self._avatar_animation_id)
-				except Exception:
-					pass
+			# Update enhanced 2D, 3D, or basic 2D display
+			if hasattr(self, 'avatar_3d_widget') and self.avatar_3d_widget:
+				self.avatar_3d_widget.remove_pet(pet_key)
+			else:
+				self._draw_avatar_room()
+				# Stop animation if no pets left (2D only)
+				if not self.pets and hasattr(self, '_avatar_animation_id'):
+					try:
+						self.avatar_canvas.after_cancel(self._avatar_animation_id)
+					except Exception:
+						pass
 	
 	def _animate_pets(self):
 		"""Animate pets walking around the room."""
