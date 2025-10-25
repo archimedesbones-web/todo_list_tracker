@@ -2,6 +2,8 @@
 
 A comprehensive task management application with **adorable chibi 3D avatar system** inspired by Animal Crossing GameCube! Built with Python and Tkinter.
 
+**📱 NEW: Android version now available!** See [ANDROID_BUILD_GUIDE.md](ANDROID_BUILD_GUIDE.md) for building and installing on Android devices.
+
 ## ✨ Key Features
 
 ### 🌟 Chibi 3D Avatar System (NEW!)
@@ -26,7 +28,9 @@ A comprehensive task management application with **adorable chibi 3D avatar syst
 
 ## 🚀 Quick Start
 
-### Installation
+### Desktop Version (Windows/Mac/Linux)
+
+#### Installation
 
 1. **Clone or download** this repository
 2. **Install Python 3.7+** (if not already installed)
@@ -36,13 +40,13 @@ A comprehensive task management application with **adorable chibi 3D avatar syst
    ```
    *Note: The app works without these - they just enable additional 3D avatar systems*
 
-### Launch the App
+#### Launch the App
 
 ```bash
 python todo_list_tracker.py
 ```
 
-### Experience Your Chibi Avatar
+#### Experience Your Chibi Avatar
 
 1. Navigate to **"🌟 CHIBI 3D AVATAR ROOM"** tab
 2. Click **"🌟 Initialize Chibi 3D Avatar"**
@@ -50,12 +54,34 @@ python todo_list_tracker.py
 4. **Use arrow buttons** to move your avatar in 3D space
 5. **Complete tasks** to earn XP and unlock new clothing and pets!
 
+### 📱 Android Version
+
+Want to use Todo List Tracker on your Android device? We've got you covered!
+
+**See the complete guide:** [ANDROID_BUILD_GUIDE.md](ANDROID_BUILD_GUIDE.md)
+
+**Quick overview:**
+1. Install Kivy and Buildozer on your Linux/Mac development machine
+2. Run `buildozer android debug` to build the APK
+3. Install on your Android device via USB or file transfer
+4. Enjoy task management on the go!
+
+The Android version includes:
+- ✅ Core task management (add, complete, delete)
+- ✅ Categories and priorities
+- ✅ Task filtering (all, active, completed)
+- ✅ Mobile-optimized touch interface
+- ✅ Persistent data storage
+
+*Note: The 3D avatar features are desktop-only to ensure optimal mobile performance.*
+
 ## 📁 Project Structure
 
 ```
 todo_list_tracker/
 │
-├── todo_list_tracker.py      # Main application file
+├── todo_list_tracker.py      # Main desktop application file
+├── todo_android.py           # Android/mobile version (Kivy)
 ├── avatar_fast_3d.py         # Fast 3D chibi avatar system (primary)
 ├── avatar_real_3d.py         # Matplotlib 3D avatar system
 ├── avatar_true_3d.py         # OpenGL 3D avatar system  
@@ -66,8 +92,11 @@ todo_list_tracker/
 │   └── todo_settings.json   # App preferences
 │
 ├── README.md                 # This documentation
+├── ANDROID_BUILD_GUIDE.md    # Android build instructions
 ├── CHANGELOG.md              # Version history
-├── requirements.txt          # Optional dependencies
+├── requirements.txt          # Desktop dependencies
+├── requirements-android.txt  # Android build dependencies
+├── buildozer.spec           # Android build configuration
 └── VERSION.txt              # Current version
 ```
 

@@ -1,0 +1,18 @@
+# Android Development Requirements
+# Install these on your development machine to build the Android APK
+
+# Kivy - Cross-platform Python framework
+kivy>=2.2.0
+
+# Buildozer - Tool for building Android APKs from Python
+buildozer>=1.5.0
+
+# Cython - Required by Buildozer
+Cython>=0.29.0
+
+# Additional tools for Android development
+# Note: You also need Android SDK and NDK installed on your system
+# Buildozer will download these if not present
+
+# Optional: For better Android development experience
+# python-for-android>=2023.1.0
