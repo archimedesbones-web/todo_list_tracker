@@ -54,12 +54,12 @@ See [ANDROID_BUILD_GUIDE.md](ANDROID_BUILD_GUIDE.md) for:
 ✅ Organize by category (General, Work, Personal, etc.)  
 ✅ Set priority levels (Low, Medium, High, Urgent)  
 ✅ Filter view (All, Active, Completed)  
-✅ Data persists on device  
+✅ Data persists in private app storage (no permissions needed)
 ✅ Touch-optimized interface  
 
 ## App Permissions
 
-- **Storage:** Save and load your tasks
+- **None required:** App uses private internal storage
 
 ## Support
 

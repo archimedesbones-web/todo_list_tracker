@@ -12,6 +12,9 @@ package.domain = org.todotracker
 # (str) Source code where the main.py live
 source.dir = .
 
+# (str) Python entry point (default: main.py)
+source.main = todo_android.py
+
 # (list) Source files to include (let empty to include all the files)
 source.include_exts = py,png,jpg,kv,atlas,json
 
@@ -29,7 +32,8 @@ orientation = portrait
 fullscreen = 0
 
 # (list) Permissions
-android.permissions = WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
+# Using private storage, no external storage permissions needed
+# android.permissions =
 
 # (int) Target Android API, should be as high as possible.
 android.api = 33

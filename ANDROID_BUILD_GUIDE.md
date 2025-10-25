@@ -99,8 +99,8 @@ Key settings in `buildozer.spec`:
 - `title`: App name shown on device
 - `package.name`: Internal package identifier
 - `version`: App version number
+- `source.main`: Entry point (todo_android.py)
 - `requirements`: Python packages to include
-- `android.permissions`: Required Android permissions
 - `android.api`: Target Android API level
 
 ### Step 3: Build the APK
@@ -202,13 +202,13 @@ This builds, installs, and runs the app in one command.
 
 **App crashes on launch**
 - Check device logs: `adb logcat | grep python`
-- Verify all required permissions are granted
-- Ensure Android version compatibility
+- Ensure Android version compatibility (Android 5.0+)
+- Verify buildozer.spec configuration
 
 **Data not persisting**
-- Check storage permissions
-- App data is stored in private app directory
+- App data is stored in private app directory (no permissions needed)
 - Uninstalling app will delete all tasks
+- Check logs for any file I/O errors
 
 ## Building for Different Architectures
 
