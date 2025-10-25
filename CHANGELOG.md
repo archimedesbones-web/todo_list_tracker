@@ -1,5 +1,37 @@
 # Changelog - Todo List Tracker
 
+## Version 1.03-android (2025-10-25)
+
+### 📱 NEW: Android Version
+
+#### **Mobile App Features**
+- **Kivy-Based Framework**: Cross-platform mobile application using Kivy
+- **Touch-Optimized UI**: Designed specifically for touchscreen devices
+- **Core Task Management**: Full task functionality on mobile
+  - Add, complete, and delete tasks
+  - Set task categories (General, Work, Personal, Shopping, Health, Learning)
+  - Set priority levels (Low, Medium, High, Urgent)
+  - Filter tasks by status (All, Active, Completed)
+- **Persistent Storage**: Tasks saved locally on Android device
+- **Responsive Layout**: Adapts to different screen sizes
+- **Material-Style Interface**: Modern Android design patterns
+
+#### **Build System**
+- **Buildozer Configuration**: Complete buildozer.spec for Android builds
+- **Multi-Architecture Support**: ARM64 and ARMv7 builds
+- **Optimized APK Size**: Minimal dependencies for smaller download
+- **Android API 21+**: Compatible with Android 5.0 and newer
+
+#### **Documentation**
+- **ANDROID_BUILD_GUIDE.md**: Comprehensive build instructions
+- **ANDROID_QUICKSTART.md**: Quick reference for users
+- **Test Suite**: Core functionality tests for Android version
+
+#### **Technical Notes**
+- 3D avatar features from desktop version not included on mobile for optimal performance
+- Simplified UI optimized for smaller screens and touch interaction
+- Separate task storage file (tasks_android.json) from desktop version
+
 ## Version 1.03 (2025-10-24)
 
 ### 🌟 Major New Features - Chibi 3D Avatar System

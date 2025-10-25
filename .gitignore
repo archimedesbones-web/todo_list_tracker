@@ -8,6 +8,15 @@ build/
 dist/
 *.spec
 
+# Exception: Keep buildozer.spec for Android builds
+!buildozer.spec
+
+# Android/Buildozer build artifacts
+.buildozer/
+bin/
+*.apk
+*.aab
+
 # Virtual environments
 venv/
 .env/
