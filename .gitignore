@@ -19,6 +19,9 @@ Thumbs.db
 # Data files (don't commit user data)
 /data/
 
+# User-uploaded custom assets (do not commit)
+/custom_assets/
+
 # IDE/editor folders
 .vscode/
 .idea/

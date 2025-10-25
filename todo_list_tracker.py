@@ -1,11 +1,11 @@
 """
-Todo List Tracker v1.02
+Todo List Tracker v1.03
 A comprehensive task management application with AI assistance, multiple views, and advanced features.
 """
 
 __version__ = "1.03"
 __author__ = "Task Manager Pro"
-__date__ = "2025-10-24"
+__date__ = "2025-10-25"
 
 import os
 import sys
@@ -13,66 +13,6 @@ import json
 from datetime import date, timedelta
 import tkinter as tk
 from tkinter import simpledialog, filedialog, messagebox, ttk
-
-# Import avatar systems (Optimized 3D, Fast 3D, Real 3D, True 3D, Simple 3D, and Enhanced 2D)
-AVATAR_OPTIMIZED_3D_AVAILABLE = False
-AVATAR_FAST_3D_AVAILABLE = False
-AVATAR_REAL_3D_AVAILABLE = False
-AVATAR_TRUE_3D_AVAILABLE = False
-AVATAR_3D_AVAILABLE = False
-AVATAR_ENHANCED_2D_AVAILABLE = False
-
-try:
-	from avatar_optimized_3d import Optimized3DAvatar
-	AVATAR_OPTIMIZED_3D_AVAILABLE = True
-	print("✅ OPTIMIZED 3D Avatar system loaded (ultra-fast 60 FPS)")
-except ImportError as e:
-	print(f"Optimized 3D Avatar not available: {e}")
-	AVATAR_OPTIMIZED_3D_AVAILABLE = False
-
-try:
-	from avatar_fast_3d import Fast3DClayAvatar
-	AVATAR_FAST_3D_AVAILABLE = True
-	print("✅ FAST 3D Avatar system loaded (optimized canvas)")
-except ImportError as e:
-	print(f"Fast 3D Avatar not available: {e}")
-
-try:
-	from avatar_real_3d import Real3DClayAvatar
-	AVATAR_REAL_3D_AVAILABLE = True
-	print("✅ Real 3D Avatar system loaded (matplotlib)")
-except ImportError as e:
-	print(f"Real 3D Avatar not available: {e}")
-
-try:
-	from avatar_true_3d import True3DClayAvatar
-	AVATAR_TRUE_3D_AVAILABLE = True
-	print("✅ True 3D Avatar system loaded (OpenGL)")
-except Exception as e:
-	print(f"True 3D Avatar not available: {e}")
-	AVATAR_TRUE_3D_AVAILABLE = False
-
-try:
-	from avatar_3d_simple import SimpleTkinterAvatar3DWidget
-	AVATAR_3D_AVAILABLE = True
-	print("✅ Simple 3D Avatar system loaded (Panda3D)")
-except ImportError as e:
-	print(f"Simple 3D Avatar not available: {e}")
-
-try:
-	from avatar_enhanced_2d import MockAvatar3DWidget
-	AVATAR_ENHANCED_2D_AVAILABLE = True
-	print("✅ Enhanced 2D Avatar system loaded")
-except ImportError as e:
-	print(f"Enhanced 2D Avatar not available: {e}")
-
-# Avatar system preference order: Optimized 3D > Fast 3D > Real 3D > True 3D > Enhanced 2D > Simple 3D > Basic 2D
-USE_OPTIMIZED_3D = AVATAR_OPTIMIZED_3D_AVAILABLE
-USE_FAST_3D = AVATAR_FAST_3D_AVAILABLE and not USE_OPTIMIZED_3D
-USE_REAL_3D = AVATAR_REAL_3D_AVAILABLE and not USE_OPTIMIZED_3D and not USE_FAST_3D
-USE_TRUE_3D = AVATAR_TRUE_3D_AVAILABLE and not USE_OPTIMIZED_3D and not USE_FAST_3D and not USE_REAL_3D
-USE_ENHANCED_2D = AVATAR_ENHANCED_2D_AVAILABLE and not USE_OPTIMIZED_3D and not USE_FAST_3D and not USE_REAL_3D and not USE_TRUE_3D
-USE_SIMPLE_3D = AVATAR_3D_AVAILABLE and not USE_OPTIMIZED_3D and not USE_FAST_3D and not USE_REAL_3D and not USE_TRUE_3D and not USE_ENHANCED_2D
 
 def get_app_dir():
 	if getattr(sys, 'frozen', False):
@@ -205,6 +145,7 @@ class TodoApp:
 		self.XP_PER_TASK = 10
 		self.unlocked_items = set()
 		self.pets = []  # List of active pets {"type": str, "x": int, "y": int, "direction": str}
+		self.custom_assets = []  # List of custom PNG assets {"path": str, "x": float, "y": float, "scale": float}
 		self.STARTER_PETS = ["pet_cat", "pet_dog"]
 		
 		# Define unlock thresholds (level -> unlockable items)
@@ -1401,10 +1342,10 @@ class TodoApp:
 	
 	def _setup_avatar_room_tab(self):
 		"""Set up the Avatar Room tab with customizable avatar and virtual environment."""
-		# Initialize avatar state
+		# Initialize avatar state with normalized coordinates (0.0 to 1.0)
 		self._avatar_state = {
-			"x": 300,  # Center x position
-			"y": 250,  # Center y position
+			"x": 0.5,  # Center x position (normalized)
+			"y": 0.5,  # Center y position (normalized)
 			"direction": "down",  # down, up, left, right
 			"hat": "baseball_cap",
 			"shirt": "t_shirt_blue",
@@ -1421,6 +1362,7 @@ class TodoApp:
 			self.tasks_completed = self.settings.get('tasks_completed', 0)
 			self.unlocked_items = set(self.settings.get('unlocked_items', []))
 			self.pets = self.settings.get('pets', [])
+			self._placed_items = self.settings.get('placed_items', [])
 		
 		
 		# Main container
@@ -1453,80 +1395,99 @@ class TodoApp:
 		content_frame = tk.Frame(main_frame)
 		content_frame.pack(fill="both", expand=True)
 		
-		# Left side - Avatar display (3D or 2D fallback)
+		# Left side - Canvas for room
 		canvas_frame = tk.Frame(content_frame)
 		canvas_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
 		
-		# Choose avatar system (Optimized 3D > Fast 3D > Real 3D > True 3D > Enhanced 2D > Simple 3D > Basic 2D fallback)
-		if USE_OPTIMIZED_3D and AVATAR_OPTIMIZED_3D_AVAILABLE:
-			canvas_label = tk.Label(canvas_frame, text="⚡ ULTRA-FAST 3D AVATAR ROOM (60 FPS Blender-Style)", font=("", 12, "bold"), fg="#e74c3c")
-			canvas_label.pack(pady=(0, 5))
-			
-			# Create OPTIMIZED 3D avatar widget with ultra-fast rendering
-			self.avatar_3d_widget = Optimized3DAvatar(canvas_frame)
-			self.avatar_3d_widget.pack(fill="both", expand=True)
-			self.avatar_canvas = None
-		elif USE_FAST_3D and AVATAR_FAST_3D_AVAILABLE:
-			canvas_label = tk.Label(canvas_frame, text="🌟 CHIBI 3D AVATAR ROOM (Animal Crossing Style)", font=("", 12, "bold"), fg="#e67e22")
-			canvas_label.pack(pady=(0, 5))
-			
-			# Create FAST 3D avatar widget with optimized canvas
-			self.avatar_3d_widget = Fast3DClayAvatar(canvas_frame)
-			self.avatar_3d_widget.pack(fill="both", expand=True)
-			self.avatar_canvas = None
-		elif USE_REAL_3D and AVATAR_REAL_3D_AVAILABLE:
-			canvas_label = tk.Label(canvas_frame, text="🚀 REAL 3D CLAYMATION AVATAR ROOM", font=("", 12, "bold"), fg="#e74c3c")
-			canvas_label.pack(pady=(0, 5))
-			
-			# Create REAL 3D avatar widget with matplotlib
-			self.avatar_3d_widget = Real3DClayAvatar(canvas_frame)
-			self.avatar_3d_widget.pack(fill="both", expand=True)
-			self.avatar_canvas = None
-		elif USE_TRUE_3D and AVATAR_TRUE_3D_AVAILABLE:
-			canvas_label = tk.Label(canvas_frame, text="🎮 TRUE 3D CLAYMATION AVATAR ROOM", font=("", 10, "bold"), fg="#e74c3c")
-			canvas_label.pack(pady=(0, 5))
-			
-			# Create TRUE 3D avatar widget with OpenGL
-			self.avatar_3d_widget = True3DClayAvatar(canvas_frame)
-			self.avatar_3d_widget.pack(fill="both", expand=True)
-			self.avatar_canvas = None
-		elif USE_ENHANCED_2D and AVATAR_ENHANCED_2D_AVAILABLE:
-			canvas_label = tk.Label(canvas_frame, text="🎨 Enhanced Claymation Avatar Room", font=("", 10, "bold"))
-			canvas_label.pack(pady=(0, 5))
-			
-			# Create enhanced 2D avatar widget  
-			self.avatar_3d_widget = MockAvatar3DWidget(canvas_frame)
-			self.avatar_3d_widget.pack(fill="both", expand=True)
-			self.avatar_canvas = None
-		elif USE_SIMPLE_3D and AVATAR_3D_AVAILABLE:
-			canvas_label = tk.Label(canvas_frame, text="🎮 3D Claymation Avatar Room", font=("", 10, "bold"))
-			canvas_label.pack(pady=(0, 5))
-			
-			# Create simple 3D avatar widget
-			self.avatar_3d_widget = SimpleTkinterAvatar3DWidget(canvas_frame)
-			self.avatar_3d_widget.pack(fill="both", expand=True)
-			self.avatar_canvas = None
-		else:
-			canvas_label = tk.Label(canvas_frame, text="Your Avatar Room (Use Arrow Keys to Move)", font=("", 10))
-			canvas_label.pack(pady=(0, 5))
-			
-			# Fallback to basic 2D canvas
-			self.avatar_canvas = tk.Canvas(canvas_frame, width=600, height=400, bg="#f0f0f0", highlightthickness=2)
-			self.avatar_canvas.pack()
-			self.avatar_3d_widget = None
+		canvas_label = tk.Label(canvas_frame, text="Your Avatar Room (Use Arrow Keys to Move)", font=("", 10))
+		canvas_label.pack(pady=(0, 5))
 		
-		# Right side - Customization controls
-		custom_frame = tk.Frame(content_frame, width=250)
-		custom_frame.pack(side="right", fill="y")
-		custom_frame.pack_propagate(False)
+		# Canvas for rendering room and avatar (responsive to window size)
+		self.avatar_canvas = tk.Canvas(canvas_frame, bg="#f0f0f0", highlightthickness=2)
+		self.avatar_canvas.pack(fill="both", expand=True)
+		
+		# Bind canvas resize event with heavy debouncing to prevent resize flashing
+		self._resize_debounce_id = None
+		def _on_canvas_resize(event):
+			if hasattr(self, '_resize_debounce_id') and self._resize_debounce_id:
+				self.avatar_canvas.after_cancel(self._resize_debounce_id)
+			# Don't redraw on resize - let the animation loop handle it
+			# This prevents flashing during window resize
+			self._resize_debounce_id = None
+		self.avatar_canvas.bind("<Configure>", _on_canvas_resize)
+
+		# Initialize animation states for avatar/scene
+		import time, random
+		self._last_user_move_time = time.time()
+		self._avatar_auto_move = True
+		self._avatar_walk_phase = 0.0  # for bobbing/swing
+		# Blink state: ticks to next blink and current blink progress (0-1)
+		self._blink_state = {
+			"ticks_to_next": random.randint(20, 50),  # 2-5 seconds at 100ms tick
+			"progress": 0.0,
+			"active": False
+		}
+		# Random event state
+		self._random_event = {
+			"type": None,
+			"ticks_left": 0
+		}
+		# Window animation state
+		self._scene_window = {
+			"sun_t": 0.0,
+			"clouds": [
+				{"x": -0.2, "y": 0.2, "speed": 0.005},
+				{"x": 0.3, "y": 0.35, "speed": 0.003},
+				{"x": 0.8, "y": 0.25, "speed": 0.004}
+			]
+		}
+		
+		# Right side - Customization controls with scrollbar
+		custom_outer_frame = tk.Frame(content_frame, width=250)
+		custom_outer_frame.pack(side="right", fill="both", expand=False)
+		custom_outer_frame.pack_propagate(False)
+		
+		# Scrollable canvas for customization
+		custom_canvas = tk.Canvas(custom_outer_frame, highlightthickness=0)
+		custom_scrollbar = tk.Scrollbar(custom_outer_frame, orient="vertical", command=custom_canvas.yview)
+		custom_frame = tk.Frame(custom_canvas)
+		
+		custom_frame.bind("<Configure>", lambda e: custom_canvas.configure(scrollregion=custom_canvas.bbox("all")))
+		custom_canvas.create_window((0, 0), window=custom_frame, anchor="nw")
+		custom_canvas.configure(yscrollcommand=custom_scrollbar.set)
+		
+		custom_canvas.pack(side="left", fill="both", expand=True)
+		custom_scrollbar.pack(side="right", fill="y")
+		
+		# Enable mousewheel scrolling
+		def _on_mousewheel(event):
+			custom_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+		custom_canvas.bind_all("<MouseWheel>", _on_mousewheel)
 		
 		# Customization title
 		custom_title = tk.Label(custom_frame, text="Customize Avatar", font=("", 12, "bold"))
-		custom_title.pack(pady=(0, 15))
+		custom_title.pack(pady=(0, 10))
 		
-		# Hat selection
-		hat_frame = tk.LabelFrame(custom_frame, text="Hat", padx=10, pady=10)
-		hat_frame.pack(fill="x", pady=(0, 10))
+		# Collapsible categories state
+		self._avatar_sections_expanded = {
+			"hats": False,
+			"shirts": False,
+			"pants": False,
+			"pets": False,
+			"colors": False
+		}
+		
+		# Hat selection (collapsible)
+		hat_header = tk.Frame(custom_frame, relief="raised", borderwidth=1)
+		hat_header.pack(fill="x", pady=(0, 2))
+		
+		self.hat_toggle_btn = tk.Button(hat_header, text="▶ Hats", anchor="w", 
+										command=lambda: self._toggle_avatar_section("hats"),
+										relief="flat", font=("", 10, "bold"))
+		self.hat_toggle_btn.pack(fill="x", padx=5, pady=2)
+		
+		self.hat_content_frame = tk.Frame(custom_frame)
+		# Content initially hidden
 		
 		self.hat_var = tk.StringVar(value=self._avatar_state["hat"])
 		hat_options = [
@@ -1544,13 +1505,21 @@ class TodoApp:
 			is_locked = unlock_key is not None and unlock_key not in self.unlocked_items
 			label = f"{text} (Locked)" if is_locked else text
 			state = tk.DISABLED if is_locked else tk.NORMAL
-			rb = tk.Radiobutton(hat_frame, text=label, variable=self.hat_var, value=value,
+			rb = tk.Radiobutton(self.hat_content_frame, text=label, variable=self.hat_var, value=value,
 						   command=self._update_avatar_clothing, state=state)
-			rb.pack(anchor="w")
+			rb.pack(anchor="w", padx=10)
 		
-		# Shirt selection
-		shirt_frame = tk.LabelFrame(custom_frame, text="Shirt", padx=10, pady=10)
-		shirt_frame.pack(fill="x", pady=(0, 10))
+		# Shirt selection (collapsible)
+		shirt_header = tk.Frame(custom_frame, relief="raised", borderwidth=1)
+		shirt_header.pack(fill="x", pady=(0, 2))
+		
+		self.shirt_toggle_btn = tk.Button(shirt_header, text="▶ Shirts", anchor="w",
+										  command=lambda: self._toggle_avatar_section("shirts"),
+										  relief="flat", font=("", 10, "bold"))
+		self.shirt_toggle_btn.pack(fill="x", padx=5, pady=2)
+		
+		self.shirt_content_frame = tk.Frame(custom_frame)
+		# Content initially hidden
 		
 		self.shirt_var = tk.StringVar(value=self._avatar_state["shirt"])
 		shirt_options = [
@@ -1568,13 +1537,21 @@ class TodoApp:
 			is_locked = unlock_key is not None and unlock_key not in self.unlocked_items
 			label = f"{text} (Locked)" if is_locked else text
 			state = tk.DISABLED if is_locked else tk.NORMAL
-			rb = tk.Radiobutton(shirt_frame, text=label, variable=self.shirt_var, value=value,
+			rb = tk.Radiobutton(self.shirt_content_frame, text=label, variable=self.shirt_var, value=value,
 						   command=self._update_avatar_clothing, state=state)
-			rb.pack(anchor="w")
+			rb.pack(anchor="w", padx=10)
 		
-		# Pants selection
-		pants_frame = tk.LabelFrame(custom_frame, text="Pants", padx=10, pady=10)
-		pants_frame.pack(fill="x", pady=(0, 10))
+		# Pants selection (collapsible)
+		pants_header = tk.Frame(custom_frame, relief="raised", borderwidth=1)
+		pants_header.pack(fill="x", pady=(0, 2))
+		
+		self.pants_toggle_btn = tk.Button(pants_header, text="▶ Pants", anchor="w",
+										  command=lambda: self._toggle_avatar_section("pants"),
+										  relief="flat", font=("", 10, "bold"))
+		self.pants_toggle_btn.pack(fill="x", padx=5, pady=2)
+		
+		self.pants_content_frame = tk.Frame(custom_frame)
+		# Content initially hidden
 		
 		self.pants_var = tk.StringVar(value=self._avatar_state["pants"])
 		pants_options = [
@@ -1591,13 +1568,21 @@ class TodoApp:
 			is_locked = unlock_key is not None and unlock_key not in self.unlocked_items
 			label = f"{text} (Locked)" if is_locked else text
 			state = tk.DISABLED if is_locked else tk.NORMAL
-			rb = tk.Radiobutton(pants_frame, text=label, variable=self.pants_var, value=value,
+			rb = tk.Radiobutton(self.pants_content_frame, text=label, variable=self.pants_var, value=value,
 						   command=self._update_avatar_clothing, state=state)
-			rb.pack(anchor="w")
+			rb.pack(anchor="w", padx=10)
 
-		# Pets selection
-		pets_frame = tk.LabelFrame(custom_frame, text="Pets", padx=10, pady=10)
-		pets_frame.pack(fill="x", pady=(0, 10))
+		# Pets selection (collapsible)
+		pets_header = tk.Frame(custom_frame, relief="raised", borderwidth=1)
+		pets_header.pack(fill="x", pady=(0, 2))
+		
+		self.pets_toggle_btn = tk.Button(pets_header, text="▶ Pets", anchor="w",
+										 command=lambda: self._toggle_avatar_section("pets"),
+										 relief="flat", font=("", 10, "bold"))
+		self.pets_toggle_btn.pack(fill="x", padx=5, pady=2)
+		
+		self.pets_content_frame = tk.Frame(custom_frame)
+		# Content initially hidden
 
 		self.pet_vars = {}
 		present_types = set(p.get("type") for p in (self.pets or []))
@@ -1614,37 +1599,125 @@ class TodoApp:
 			state = tk.NORMAL if is_unlocked else tk.DISABLED
 			var = tk.BooleanVar(value=(pet_key in present_types))
 			self.pet_vars[pet_key] = var
-			cb = tk.Checkbutton(pets_frame, text=label, variable=var, state=state,
+			cb = tk.Checkbutton(self.pets_content_frame, text=label, variable=var, state=state,
 						   command=lambda k=pet_key: self._toggle_pet(k))
-			cb.pack(anchor="w")
+			cb.pack(anchor="w", padx=10)
+		
+		# Room customization (collapsible)
+		colors_header = tk.Frame(custom_frame, relief="raised", borderwidth=1)
+		colors_header.pack(fill="x", pady=(0, 2))
+		
+		self.colors_toggle_btn = tk.Button(colors_header, text="▶ Room Customization", anchor="w",
+										   command=lambda: self._toggle_avatar_section("colors"),
+										   relief="flat", font=("", 10, "bold"))
+		self.colors_toggle_btn.pack(fill="x", padx=5, pady=2)
+		
+		self.colors_content_frame = tk.Frame(custom_frame)
+		# Content initially hidden
+		
+		# Load saved room colors or use defaults
+		if hasattr(self, 'settings') and 'room_colors' in self.settings:
+			self._room_colors = self.settings['room_colors']
+		else:
+			self._room_colors = {
+				"floor": "#e8dcc0",
+				"wall": "#a8a8a8"
+			}
+		
+		# Floor color
+		floor_label = tk.Label(self.colors_content_frame, text="Floor Color:", font=("", 9))
+		floor_label.pack(anchor="w", padx=10, pady=(5, 0))
+		
+		floor_color_frame = tk.Frame(self.colors_content_frame)
+		floor_color_frame.pack(fill="x", padx=10, pady=(0, 5))
+		
+		floor_presets = [
+			("Beige", "#e8dcc0"),
+			("Wood", "#8b7355"),
+			("Gray", "#c0c0c0"),
+			("White", "#f5f5f5"),
+			("Dark Wood", "#654321"),
+			("Marble", "#e6e6fa")
+		]
+		
+		for i, (name, color) in enumerate(floor_presets):
+			btn = tk.Button(floor_color_frame, text=name, bg=color, width=8,
+						   command=lambda c=color: self._set_room_color("floor", c))
+			btn.grid(row=i//2, column=i%2, padx=2, pady=2, sticky="ew")
+		
+		# Wall color
+		wall_label = tk.Label(self.colors_content_frame, text="Wall Color:", font=("", 9))
+		wall_label.pack(anchor="w", padx=10, pady=(10, 0))
+		
+		wall_color_frame = tk.Frame(self.colors_content_frame)
+		wall_color_frame.pack(fill="x", padx=10, pady=(0, 5))
+		
+		wall_presets = [
+			("Gray", "#a8a8a8"),
+			("White", "#f0f0f0"),
+			("Cream", "#fff8dc"),
+			("Blue", "#b0c4de"),
+			("Green", "#98b898"),
+			("Pink", "#ffc0cb")
+		]
+		
+		for i, (name, color) in enumerate(wall_presets):
+			btn = tk.Button(wall_color_frame, text=name, bg=color, width=8,
+						   command=lambda c=color: self._set_room_color("wall", c))
+			btn.grid(row=i//2, column=i%2, padx=2, pady=2, sticky="ew")
+		
+		# Window count
+		window_label = tk.Label(self.colors_content_frame, text="Number of Windows:", font=("", 9))
+		window_label.pack(anchor="w", padx=10, pady=(10, 0))
+		
+		# Load saved window count or use default
+		if hasattr(self, 'settings') and 'window_count' in self.settings:
+			self._window_count = self.settings['window_count']
+		else:
+			self._window_count = 1
+		
+		window_count_frame = tk.Frame(self.colors_content_frame)
+		window_count_frame.pack(fill="x", padx=10, pady=(0, 5))
+		
+		for count in [1, 2, 3, 4]:
+			btn = tk.Button(window_count_frame, text=str(count), width=4,
+						   command=lambda c=count: self._set_window_count(c))
+			btn.pack(side="left", padx=2, pady=2)
+		
+		# Asset Designer button
+		asset_designer_label = tk.Label(self.colors_content_frame, text="Custom Assets:", font=("", 9))
+		asset_designer_label.pack(anchor="w", padx=10, pady=(10, 0))
+		
+		asset_designer_btn = tk.Button(self.colors_content_frame, text="🎨 Open Asset Designer", 
+									   command=self._open_asset_designer_window,
+									   font=("", 9, "bold"))
+		asset_designer_btn.pack(fill="x", padx=10, pady=(5, 10))
+		
+		# Furniture Placement button
+		furniture_label = tk.Label(self.colors_content_frame, text="Place Items:", font=("", 9))
+		furniture_label.pack(anchor="w", padx=10, pady=(10, 0))
+		
+		furniture_btn = tk.Button(self.colors_content_frame, text="🛋️ Place Furniture & Decorations", 
+									   command=self._open_furniture_window,
+									   font=("", 9, "bold"))
+		furniture_btn.pack(fill="x", padx=10, pady=(5, 10))
 		
 		# Movement instructions
 		instructions = tk.Label(custom_frame, text="\n⌨️ Controls:\n↑ ↓ ← → Arrow Keys\nto move around",
 							   justify="center", font=("", 9))
 		instructions.pack(pady=10)
 		
-		# Bind keyboard controls (enhanced 2D, 3D, or basic 2D)
-		if hasattr(self, 'avatar_3d_widget') and self.avatar_3d_widget:
-			# Enhanced 2D or 3D widget - bind to main frame
-			canvas_frame.bind("<Up>", lambda e: self._move_avatar("up"))
-			canvas_frame.bind("<Down>", lambda e: self._move_avatar("down"))
-			canvas_frame.bind("<Left>", lambda e: self._move_avatar("left"))
-			canvas_frame.bind("<Right>", lambda e: self._move_avatar("right"))
-			canvas_frame.focus_set()
-		elif self.avatar_canvas:
-			# 2D canvas controls
-			self.avatar_canvas.bind("<Up>", lambda e: self._move_avatar("up"))
-			self.avatar_canvas.bind("<Down>", lambda e: self._move_avatar("down"))
-			self.avatar_canvas.bind("<Left>", lambda e: self._move_avatar("left"))
-			self.avatar_canvas.bind("<Right>", lambda e: self._move_avatar("right"))
-			self.avatar_canvas.focus_set()
+		# Bind keyboard controls
+		self.avatar_canvas.bind("<Up>", lambda e: self._move_avatar("up"))
+		self.avatar_canvas.bind("<Down>", lambda e: self._move_avatar("down"))
+		self.avatar_canvas.bind("<Left>", lambda e: self._move_avatar("left"))
+		self.avatar_canvas.bind("<Right>", lambda e: self._move_avatar("right"))
+		self.avatar_canvas.focus_set()
 		
-		# Initial room and avatar rendering
-		if not (hasattr(self, 'avatar_3d_widget') and self.avatar_3d_widget):
-			self._draw_avatar_room()
-			# Start pet animation if pets exist (basic 2D only)
-			if getattr(self, 'pets', []):
-				self._animate_pets()
+		# Initial room and avatar rendering (use request to avoid double draw)
+		self._request_redraw()
+		# Start scene animation (pets/window/avatar idle)
+		self._animate_pets()
 	def _update_xp_display(self):
 		"""Update the XP progress bar and stats display."""
 		if not hasattr(self, 'xp_bar_canvas'):
@@ -1684,54 +1757,493 @@ class TodoApp:
 	
 	
 	def _draw_avatar_room(self):
-		"""Draw the virtual room environment and avatar (2D mode only)."""
-		# Only draw if using 2D canvas
-		if not self.avatar_canvas:
-			return
+		"""Draw the virtual room environment and avatar."""
 		canvas = self.avatar_canvas
-		canvas.delete("all")  # Clear canvas
+		# Don't clear here - let animation loop handle it to avoid double-clear flashing
+		
+		# Get current canvas size (don't call update_idletasks - causes flashing)
+		width = canvas.winfo_width()
+		height = canvas.winfo_height()
+		
+		# Use minimum dimensions if canvas hasn't been rendered yet
+		if width < 10:
+			width = 600
+		if height < 10:
+			height = 400
+		
+		# Get custom room colors or use defaults
+		if not hasattr(self, '_room_colors'):
+			self._room_colors = {"floor": "#e8dcc0", "wall": "#a8a8a8"}
+		floor_color = self._room_colors.get("floor", "#e8dcc0")
+		wall_color = self._room_colors.get("wall", "#a8a8a8")
 		
 		# Draw floor
-		canvas.create_rectangle(0, 0, 600, 400, fill="#e8dcc0", outline="")
+		canvas.create_rectangle(0, 0, width, height, fill=floor_color, outline="")
 		
-		# Draw floor tiles for depth effect
-		for y in range(0, 400, 40):
-			canvas.create_line(0, y, 600, y, fill="#d4c5a9", width=1)
-		for x in range(0, 600, 40):
-			canvas.create_line(x, 0, x, 400, fill="#d4c5a9", width=1)
+		# Draw floor tiles for depth effect (scale to canvas size)
+		# Make tiles slightly darker than base floor color
+		import colorsys
+		def darken_color(hex_color, factor=0.9):
+			# Convert hex to RGB
+			hex_color = hex_color.lstrip('#')
+			r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+			# Convert to HSV, darken, convert back
+			h, s, v = colorsys.rgb_to_hsv(r/255, g/255, b/255)
+			v = v * factor
+			r, g, b = colorsys.hsv_to_rgb(h, s, v)
+			return f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
 		
-		# Draw walls
+		tile_color = darken_color(floor_color, 0.85)
+		tile_size = max(30, min(50, width // 15))
+		for y in range(0, height, tile_size):
+			canvas.create_line(0, y, width, y, fill=tile_color, width=1)
+		for x in range(0, width, tile_size):
+			canvas.create_line(x, 0, x, height, fill=tile_color, width=1)
+
+		# Custom assets: draw floor-covering assets before walls
+		self._draw_custom_assets(layer="floor")
+		
+		# Draw walls (scaled)
+		wall_depth = int(height * 0.2)  # 20% of height
+		side_wall_width = int(width * 0.08)  # 8% of width
+		
+		# Calculate wall shading colors
+		wall_darker = darken_color(wall_color, 0.7)
+		wall_outline = darken_color(wall_color, 0.6)
+		
 		# Back wall
-		canvas.create_rectangle(0, 0, 600, 80, fill="#a8a8a8", outline="#808080", width=2)
-		# Side walls (perspective)
-		canvas.create_polygon(0, 0, 50, 50, 50, 350, 0, 400, fill="#8c8c8c", outline="#606060", width=2)
-		canvas.create_polygon(600, 0, 550, 50, 550, 350, 600, 400, fill="#8c8c8c", outline="#606060", width=2)
+		canvas.create_rectangle(0, 0, width, wall_depth, fill=wall_color, outline=wall_outline, width=2)
+		# Side walls (perspective) - extend to bottom and beyond
+		# Left wall extends from top-left corner down past the bottom
+		canvas.create_polygon(0, 0, side_wall_width, wall_depth, side_wall_width, height + 100, 0, height + 100, 
+							 fill=wall_darker, outline=wall_outline, width=2)
+		# Right wall extends from top-right corner down past the bottom
+		canvas.create_polygon(width, 0, width - side_wall_width, wall_depth, width - side_wall_width, height + 100, width, height + 100,
+							 fill=wall_darker, outline=wall_outline, width=2)
 		
-		# Draw furniture/decorations
+		# Draw furniture/decorations (scaled proportionally)
 		# Plant in corner
-		canvas.create_oval(70, 300, 110, 340, fill="#6b8e23", outline="#556b2f", width=2)
-		canvas.create_rectangle(85, 340, 95, 360, fill="#8b4513", outline="#654321", width=1)
+		plant_x = int(width * 0.12)
+		plant_y = int(height * 0.75)
+		plant_size = int(min(width, height) * 0.067)
+		canvas.create_oval(plant_x, plant_y, plant_x + plant_size, plant_y + plant_size, 
+						  fill="#6b8e23", outline="#556b2f", width=2)
+		canvas.create_rectangle(plant_x + plant_size//4, plant_y + plant_size, 
+							   plant_x + 3*plant_size//4, plant_y + int(plant_size * 1.5), 
+							   fill="#8b4513", outline="#654321", width=1)
 		
 		# Table
-		canvas.create_rectangle(450, 280, 530, 300, fill="#8b4513", outline="#654321", width=2)
-		canvas.create_rectangle(460, 300, 470, 340, fill="#654321", outline="#4a2f1a", width=1)
-		canvas.create_rectangle(510, 300, 520, 340, fill="#654321", outline="#4a2f1a", width=1)
+		table_x = int(width * 0.75)
+		table_y = int(height * 0.7)
+		table_w = int(width * 0.13)
+		table_h = int(height * 0.05)
+		canvas.create_rectangle(table_x, table_y, table_x + table_w, table_y + table_h, 
+							   fill="#8b4513", outline="#654321", width=2)
+		# Table legs
+		leg_w = int(table_w * 0.125)
+		leg_h = int(height * 0.1)
+		canvas.create_rectangle(table_x + leg_w, table_y + table_h, 
+							   table_x + 2*leg_w, table_y + table_h + leg_h,
+							   fill="#654321", outline="#4a2f1a", width=1)
+		canvas.create_rectangle(table_x + table_w - 2*leg_w, table_y + table_h,
+							   table_x + table_w - leg_w, table_y + table_h + leg_h,
+							   fill="#654321", outline="#4a2f1a", width=1)
 		
-		# Window on back wall
-		canvas.create_rectangle(250, 15, 350, 55, fill="#87ceeb", outline="#4682b4", width=3)
-		canvas.create_line(300, 15, 300, 55, fill="#4682b4", width=2)
-		canvas.create_line(250, 35, 350, 35, fill="#4682b4", width=2)
+		# Windows on back wall (1-4 windows equally spaced)
+		if not hasattr(self, '_window_count'):
+			self._window_count = 1
 		
-		# Draw avatar
+		num_windows = self._window_count
+		window_h = int(wall_depth * 0.5)
+		window_y = int(wall_depth * 0.2)
+		
+		# Fixed window width (same size for all windows)
+		window_w = int(width * 0.15)  # Each window is 15% of width
+		
+		# Calculate spacing to spread windows equally across the wall
+		if num_windows == 1:
+			# Single window centered
+			start_x = (width - window_w) // 2
+			spacing = 0
+		else:
+			# Multiple windows: calculate spacing to spread them evenly
+			# Total space for windows
+			total_window_width = num_windows * window_w
+			# Remaining space for gaps (including margins)
+			remaining_space = width - total_window_width
+			# Divide remaining space into (num_windows + 1) gaps
+			spacing = remaining_space // (num_windows + 1)
+			start_x = spacing
+		
+		for i in range(num_windows):
+			window_x = start_x + i * (window_w + spacing)
+			
+			# Draw sky background first
+			canvas.create_rectangle(window_x, window_y, window_x + window_w, window_y + window_h,
+								   fill="#87ceeb", outline="")
+			
+			# Draw animated sun and clouds (clipped to window)
+			if hasattr(self, '_scene_window'):
+				# Only draw sun in the middle window (or first window if only 1)
+				if i == num_windows // 2:
+					sun_t = self._scene_window.get("sun_t", 0.0)
+					# Sun moves in an arc across the window
+					sun_x = window_x + int(window_w * (0.2 + 0.6 * sun_t))
+					sun_y = window_y + int(window_h * (0.3 + 0.2 * abs(sun_t - 0.5)))
+					sun_r = int(min(window_w, window_h) * 0.15)
+					# Only draw sun if it's within window bounds
+					if window_x <= sun_x <= window_x + window_w and window_y <= sun_y <= window_y + window_h:
+						canvas.create_oval(sun_x - sun_r, sun_y - sun_r, sun_x + sun_r, sun_y + sun_r, 
+										  fill="#ffff00", outline="#ffa500", width=1)
+				
+				# Draw different clouds for each window
+				clouds = self._scene_window.get("clouds", [])
+				# Each window gets a different subset of clouds based on its index
+				for cloud_idx, cloud in enumerate(clouds):
+					# Distribute clouds across windows (cloud 0 -> window 0, cloud 1 -> window 1, etc., wrapping)
+					if cloud_idx % num_windows != i:
+						continue
+					
+					cloud_x_norm = cloud["x"]
+					# Only draw clouds that are within or near the window (0 to 1 range)
+					if -0.3 <= cloud_x_norm <= 1.3:
+						cloud_x = window_x + int(window_w * cloud_x_norm)
+						cloud_y = window_y + int(window_h * cloud.get("y", 0.25))
+						cloud_w = int(window_w * 0.2)
+						cloud_h = int(window_h * 0.15)
+						
+						# Clip cloud components to window bounds
+						x1 = max(window_x, cloud_x)
+						x2 = min(window_x + window_w, cloud_x + cloud_w)
+						y1 = max(window_y, cloud_y - cloud_h//3)
+						y2 = min(window_y + window_h, cloud_y + cloud_h)
+						
+						# Only draw if visible within window
+						if x1 < x2 and y1 < y2:
+							# Simple cloud shape (3 circles) - only draw portions inside window
+							if cloud_x + cloud_w//2 > window_x and cloud_x < window_x + window_w:
+								canvas.create_oval(max(window_x, cloud_x), max(window_y, cloud_y), 
+												  min(window_x + window_w, cloud_x + cloud_w//2), 
+												  min(window_y + window_h, cloud_y + cloud_h), 
+												  fill="#ffffff", outline="")
+							if cloud_x + 3*cloud_w//4 > window_x and cloud_x + cloud_w//4 < window_x + window_w:
+								canvas.create_oval(max(window_x, cloud_x + cloud_w//4), 
+												  max(window_y, cloud_y - cloud_h//3), 
+												  min(window_x + window_w, cloud_x + 3*cloud_w//4), 
+												  min(window_y + window_h, cloud_y + 2*cloud_h//3), 
+												  fill="#ffffff", outline="")
+							if cloud_x + cloud_w > window_x and cloud_x + cloud_w//2 < window_x + window_w:
+								canvas.create_oval(max(window_x, cloud_x + cloud_w//2), 
+												  max(window_y, cloud_y), 
+												  min(window_x + window_w, cloud_x + cloud_w), 
+												  min(window_y + window_h, cloud_y + cloud_h), 
+												  fill="#ffffff", outline="")
+			
+			# Window frame on top
+			canvas.create_rectangle(window_x, window_y, window_x + window_w, window_y + window_h,
+								   fill="", outline="#4682b4", width=3)
+			# Window panes
+			canvas.create_line(window_x + window_w//2, window_y, window_x + window_w//2, window_y + window_h,
+							  fill="#4682b4", width=2)
+			canvas.create_line(window_x, window_y + window_h//2, window_x + window_w, window_y + window_h//2,
+							  fill="#4682b4", width=2)
+
+		# Custom assets: posters on wall, then rugs/furniture on floor surface
+		self._draw_custom_assets(layer="wall")
+		
+		# Draw placed built-in items (posters on wall first)
+		self._draw_placed_items(layer="poster")
+		
+		self._draw_custom_assets(layer="surface")
+		
+		# Draw placed built-in items (rugs and furniture)
+		self._draw_placed_items(layer="rug")
+		self._draw_placed_items(layer="furniture")
+
+		# Draw avatar and pets above rugs/furniture
 		self._draw_avatar()
-		# Draw pets on top
 		self._draw_pets()
+	
+	def _draw_placed_items(self, layer=None):
+		"""Draw placed built-in furniture/rug/poster items."""
+		if not hasattr(self, '_placed_items') or not self._placed_items:
+			return
+		
+		canvas = self.avatar_canvas
+		width = canvas.winfo_width() if canvas.winfo_width() > 10 else 600
+		height = canvas.winfo_height() if canvas.winfo_height() > 10 else 400
+		
+		for item in self._placed_items:
+			category = item.get("category", "furniture")
+			
+			# Skip if not matching layer filter
+			if layer and category != layer:
+				continue
+			
+			# Get item properties
+			x_norm = item.get("x", 0.5)
+			y_norm = item.get("y", 0.5)
+			size_norm = item.get("size", 0.1)
+			color = item.get("color", "#888")
+			name = item.get("name", "Item")
+			
+			# Convert to pixel coordinates
+			x = int(width * x_norm)
+			y = int(height * y_norm)
+			size = int(min(width, height) * size_norm)
+			
+			# Draw based on category and name
+			if category == "rug":
+				if "Round" in name:
+					canvas.create_oval(x - size, y - size, x + size, y + size, 
+									 fill=color, outline=self._darken_hex(color, 0.7), width=2)
+					# Add pattern
+					canvas.create_oval(x - size//2, y - size//2, x + size//2, y + size//2, 
+									 fill="", outline=self._darken_hex(color, 0.5), width=1)
+				else:
+					canvas.create_rectangle(x - size, y - size, x + size, y + size, 
+										  fill=color, outline=self._darken_hex(color, 0.7), width=2)
+					# Add pattern
+					for i in range(-size, size, size//3):
+						canvas.create_line(x - size, y + i, x + size, y + i, 
+										 fill=self._darken_hex(color, 0.8), width=1)
+			
+			elif category == "furniture":
+				if "Table" in name:
+					# Table top
+					table_h = size // 3
+					canvas.create_rectangle(x - size, y - table_h, x + size, y + table_h, 
+										  fill=color, outline=self._darken_hex(color, 0.6), width=2)
+					# Table legs
+					leg_w = size // 4
+					leg_h = size
+					canvas.create_rectangle(x - size + leg_w, y + table_h, 
+										  x - size + 2*leg_w, y + table_h + leg_h,
+										  fill=self._darken_hex(color, 0.7), outline=self._darken_hex(color, 0.5), width=1)
+					canvas.create_rectangle(x + size - 2*leg_w, y + table_h,
+										  x + size - leg_w, y + table_h + leg_h,
+										  fill=self._darken_hex(color, 0.7), outline=self._darken_hex(color, 0.5), width=1)
+				
+				elif "Bookshelf" in name:
+					# Bookshelf frame
+					canvas.create_rectangle(x - size, y - size, x + size, y + size, 
+										  fill=color, outline=self._darken_hex(color, 0.6), width=2)
+					# Shelves
+					for i in range(3):
+						shelf_y = y - size + (i + 1) * (2 * size // 4)
+						canvas.create_line(x - size, shelf_y, x + size, shelf_y, 
+										 fill=self._darken_hex(color, 0.5), width=2)
+					# Books
+					import random
+					random.seed(hash(name + str(x_norm) + str(y_norm)))  # Consistent colors
+					for shelf in range(2):
+						shelf_y = y - size + (shelf + 1) * (2 * size // 4)
+						book_x = x - size + size // 4
+						for _ in range(4):
+							book_color = random.choice(["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff"])
+							canvas.create_rectangle(book_x, shelf_y - size//6, 
+												  book_x + size//6, shelf_y, 
+												  fill=book_color, outline="#000", width=1)
+							book_x += size // 5
+				
+				elif "Chair" in name:
+					# Chair seat
+					canvas.create_rectangle(x - size, y, x + size, y + size, 
+										  fill=color, outline=self._darken_hex(color, 0.6), width=2)
+					# Chair back
+					canvas.create_rectangle(x - size, y - size, x + size, y, 
+										  fill=color, outline=self._darken_hex(color, 0.6), width=2)
+				
+				elif "Plant" in name:
+					# Plant leaves
+					canvas.create_oval(x - size, y - size, x + size, y + size//2, 
+									 fill="#6b8e23", outline="#556b2f", width=2)
+					# Pot
+					canvas.create_polygon(x - size//2, y + size//2, 
+										x + size//2, y + size//2,
+										x + size//3, y + size,
+										x - size//3, y + size,
+										fill="#8b4513", outline="#654321", width=2)
+				
+				elif "Sofa" in name:
+					# Sofa seat
+					canvas.create_rectangle(x - size, y - size//2, x + size, y + size, 
+										  fill=color, outline=self._darken_hex(color, 0.6), width=2)
+					# Sofa back
+					canvas.create_rectangle(x - size, y - size, x + size, y - size//2, 
+										  fill=color, outline=self._darken_hex(color, 0.6), width=2)
+					# Armrests
+					canvas.create_rectangle(x - size, y - size//2, x - size + size//4, y + size, 
+										  fill=self._darken_hex(color, 0.8), outline=self._darken_hex(color, 0.6), width=1)
+					canvas.create_rectangle(x + size - size//4, y - size//2, x + size, y + size, 
+										  fill=self._darken_hex(color, 0.8), outline=self._darken_hex(color, 0.6), width=1)
+				
+				elif "Desk" in name:
+					# Desk top
+					desk_h = size // 3
+					canvas.create_rectangle(x - size, y - desk_h, x + size, y + desk_h, 
+										  fill=color, outline=self._darken_hex(color, 0.6), width=2)
+					# Drawers on left
+					drawer_w = size // 3
+					drawer_h = size // 4
+					for i in range(2):
+						drawer_y = y + desk_h + i * drawer_h
+						canvas.create_rectangle(x - size, drawer_y, x - size + drawer_w, drawer_y + drawer_h,
+											  fill=self._darken_hex(color, 0.8), outline=self._darken_hex(color, 0.6), width=1)
+						# Drawer handle
+						canvas.create_rectangle(x - size + drawer_w//2 - 3, drawer_y + drawer_h//2 - 2,
+											  x - size + drawer_w//2 + 3, drawer_y + drawer_h//2 + 2,
+											  fill="#888", outline="#000", width=1)
+					# Legs on right
+					canvas.create_rectangle(x + size - drawer_w, y + desk_h, 
+										  x + size - drawer_w + size//6, y + size,
+										  fill=self._darken_hex(color, 0.7), outline=self._darken_hex(color, 0.5), width=1)
+			
+			elif category == "poster":
+				# Poster frame
+				canvas.create_rectangle(x - size, y - size, x + size, y + size, 
+									  fill=color, outline="#000", width=3)
+				
+				# Poster content
+				if "Star" in name:
+					import math
+					points = []
+					for i in range(10):
+						angle = math.pi / 2 + i * 2 * math.pi / 10
+						r = size * 0.4 if i % 2 == 0 else size * 0.7
+						px = x + r * math.cos(angle)
+						py = y - r * math.sin(angle)
+						points.extend([px, py])
+					canvas.create_polygon(points, fill="#fff", outline="#fff")
+				
+				elif "Heart" in name:
+					canvas.create_text(x, y, text="♥", font=("", int(size * 1.8)), fill="#fff")
+				
+				elif "Moon" in name:
+					canvas.create_oval(x - size//2, y - size//2, x + size//2, y + size//2, 
+									 fill="#fff", outline="")
+					canvas.create_oval(x - size//4, y - size//2, x + size//2 + size//4, y + size//2, 
+									 fill=color, outline="")
+				
+				elif "Sun" in name:
+					canvas.create_oval(x - size//2, y - size//2, x + size//2, y + size//2, 
+									 fill="#fff", outline="")
+					# Sun rays
+					for i in range(8):
+						angle = i * math.pi / 4
+						x1 = x + size * 0.6 * math.cos(angle)
+						y1 = y + size * 0.6 * math.sin(angle)
+						x2 = x + size * 0.9 * math.cos(angle)
+						y2 = y + size * 0.9 * math.sin(angle)
+						canvas.create_line(x1, y1, x2, y2, fill="#fff", width=2)
+				
+				elif "Music" in name:
+					canvas.create_text(x, y, text="♪♫", font=("", int(size * 1.5)), fill="#fff")
+	
+	def _darken_hex(self, hex_color, factor=0.7):
+		"""Darken a hex color by a factor."""
+		import colorsys
+		hex_color = hex_color.lstrip('#')
+		r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+		h, s, v = colorsys.rgb_to_hsv(r/255, g/255, b/255)
+		v = v * factor
+		r, g, b = colorsys.hsv_to_rgb(h, s, v)
+		return f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
+	
+	def _draw_custom_assets(self, layer=None):
+		"""Draw custom PNG/GIF assets on the avatar room canvas.
+		layer controls which categories render:
+		- "floor": Floor assets stretched across the floor area
+		- "surface": Rugs and Furniture (entities walk over them)
+		- "wall": Posters on the back wall
+		- None: all assets (fallback)
+		"""
+		if not hasattr(self, 'custom_assets') or not self.custom_assets:
+			return
+		
+		canvas = self.avatar_canvas
+		width = canvas.winfo_width() if canvas.winfo_width() > 10 else 600
+		height = canvas.winfo_height() if canvas.winfo_height() > 10 else 400
+		
+		try:
+			from PIL import Image, ImageTk
+			
+			# Keep references to prevent garbage collection
+			if not hasattr(self, '_asset_room_images'):
+				self._asset_room_images = []
+			self._asset_room_images.clear()
+			
+			# Determine allowed categories based on layer
+			if layer == "floor":
+				allowed = {"Floor"}
+			elif layer == "surface":
+				allowed = {"Rug", "Furniture"}
+			elif layer == "wall":
+				allowed = {"Poster"}
+			else:
+				allowed = None  # draw all
+
+			wall_depth = int(height * 0.2)
+			for asset in self.custom_assets:
+				category = asset.get("category", "Rug")
+				if allowed is not None and category not in allowed:
+					continue
+				filepath = asset.get("path")
+				if not filepath:
+					continue
+				
+				x = int(asset.get("x", 0.5) * width)
+				y = int(asset.get("y", 0.5) * height)
+				scale = asset.get("scale", 1.0)
+				
+				# Load image
+				img = Image.open(filepath)
+				
+				# Handle animated GIFs
+				if asset.get("is_animated", False):
+					frame_idx = asset.get("current_frame", 0)
+					try:
+						img.seek(frame_idx)
+					except EOFError:
+						asset["current_frame"] = 0
+						img.seek(0)
+				
+				# Convert RGBA if needed (for transparency)
+				if img.mode != 'RGBA':
+					img = img.convert('RGBA')
+				
+				# Floor assets stretch across the floor area
+				if category == "Floor":
+					new_width = int(width)
+					new_height = max(1, int(height - wall_depth))
+					img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+					photo = ImageTk.PhotoImage(img)
+					self._asset_room_images.append(photo)
+					canvas.create_image(0, wall_depth, image=photo, anchor="nw")
+				else:
+					# Scale image normally for rugs/furniture/posters
+					new_width = int(img.width * scale)
+					new_height = int(img.height * scale)
+					img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+					photo = ImageTk.PhotoImage(img)
+					self._asset_room_images.append(photo)
+					canvas.create_image(x, y, image=photo, anchor="center")
+		except ImportError:
+			pass  # PIL not installed
+		except Exception:
+			pass  # Error loading asset
 	
 	def _draw_avatar(self):
 		"""Draw the avatar character with current clothing."""
 		canvas = self.avatar_canvas
-		x = self._avatar_state["x"]
-		y = self._avatar_state["y"]
+		
+		# Get canvas dimensions
+		width = canvas.winfo_width() if canvas.winfo_width() > 10 else 600
+		height = canvas.winfo_height() if canvas.winfo_height() > 10 else 400
+		
+		# Convert normalized position to pixel coordinates
+		x = int(self._avatar_state["x"] * width)
+		y = int(self._avatar_state["y"] * height)
 		
 		# Get clothing colors
 		shirt_colors = {
@@ -1762,86 +2274,146 @@ class TodoApp:
 		pants_color = pants_colors.get(self._avatar_state["pants"], "#1e90ff")
 		
 		# Shadow (using gray instead of transparent black)
-		canvas.create_oval(x - 25, y + 45, x + 25, y + 55, fill="#c0c0c0", outline="")
+		shadow_y_offset = 0
+		if hasattr(self, '_random_event') and self._random_event.get("type") == "jump":
+			shadow_y_offset = 0  # Shadow stays on ground during jump
+		else:
+			shadow_y_offset = 0
+		canvas.create_oval(x - 25, y + 45 + shadow_y_offset, x + 25, y + 55 + shadow_y_offset, fill="#c0c0c0", outline="")
 		
-		# Legs (pants)
+		# Legs (pants) - apply jump offset to entire body
+		body_y_offset = 0
+		if hasattr(self, '_random_event') and self._random_event.get("type") == "jump":
+			body_y_offset = -8
+		
 		if "shorts" in self._avatar_state["pants"]:
 			# Shorts - shorter legs
-			canvas.create_rectangle(x - 12, y + 15, x - 2, y + 35, fill=pants_color, outline="#000000", width=1)
-			canvas.create_rectangle(x + 2, y + 15, x + 12, y + 35, fill=pants_color, outline="#000000", width=1)
+			canvas.create_rectangle(x - 12, y + 15 + body_y_offset, x - 2, y + 35 + body_y_offset, fill=pants_color, outline="#000000", width=1)
+			canvas.create_rectangle(x + 2, y + 15 + body_y_offset, x + 12, y + 35 + body_y_offset, fill=pants_color, outline="#000000", width=1)
 			# Lower legs showing
-			canvas.create_rectangle(x - 12, y + 35, x - 2, y + 50, fill="#fdbcb4", outline="#000000", width=1)
-			canvas.create_rectangle(x + 2, y + 35, x + 12, y + 50, fill="#fdbcb4", outline="#000000", width=1)
+			canvas.create_rectangle(x - 12, y + 35 + body_y_offset, x - 2, y + 50 + body_y_offset, fill="#fdbcb4", outline="#000000", width=1)
+			canvas.create_rectangle(x + 2, y + 35 + body_y_offset, x + 12, y + 50 + body_y_offset, fill="#fdbcb4", outline="#000000", width=1)
 		else:
 			# Full pants
-			canvas.create_rectangle(x - 12, y + 15, x - 2, y + 50, fill=pants_color, outline="#000000", width=1)
-			canvas.create_rectangle(x + 2, y + 15, x + 12, y + 50, fill=pants_color, outline="#000000", width=1)
+			canvas.create_rectangle(x - 12, y + 15 + body_y_offset, x - 2, y + 50 + body_y_offset, fill=pants_color, outline="#000000", width=1)
+			canvas.create_rectangle(x + 2, y + 15 + body_y_offset, x + 12, y + 50 + body_y_offset, fill=pants_color, outline="#000000", width=1)
 		
-		# Shoes
-		canvas.create_oval(x - 15, y + 48, x - 5, y + 54, fill="#000000", outline="#000000")
-		canvas.create_oval(x + 5, y + 48, x + 15, y + 54, fill="#000000", outline="#000000")
+		# Shoes (with jump animation)
+		shoe_y_offset = 0
+		if hasattr(self, '_random_event') and self._random_event.get("type") == "jump":
+			# Lift avatar for jump
+			shoe_y_offset = -8
 		
-		# Body (shirt)
-		canvas.create_rectangle(x - 18, y - 10, x + 18, y + 20, fill=shirt_color, outline="#000000", width=2)
+		canvas.create_oval(x - 15, y + 48 + shoe_y_offset, x - 5, y + 54 + shoe_y_offset, fill="#000000", outline="#000000")
+		canvas.create_oval(x + 5, y + 48 + shoe_y_offset, x + 15, y + 54 + shoe_y_offset, fill="#000000", outline="#000000")
 		
-		# Arms
-		canvas.create_rectangle(x - 25, y - 5, x - 18, y + 15, fill=shirt_color, outline="#000000", width=1)
-		canvas.create_rectangle(x + 18, y - 5, x + 25, y + 15, fill=shirt_color, outline="#000000", width=1)
+		# Body (shirt) - also needs jump offset
+		canvas.create_rectangle(x - 18, y - 10 + body_y_offset, x + 18, y + 20 + body_y_offset, fill=shirt_color, outline="#000000", width=2)
+		
+		# Arms (with wave animation for random events)
+		arm_left_y_offset = 0
+		arm_right_y_offset = 0
+		if hasattr(self, '_random_event') and self._random_event.get("type") == "wave":
+			# Raise right arm for wave
+			arm_right_y_offset = -10
+		
+		canvas.create_rectangle(x - 25, y - 5 + arm_left_y_offset + body_y_offset, x - 18, y + 15 + arm_left_y_offset + body_y_offset, 
+							   fill=shirt_color, outline="#000000", width=1)
+		canvas.create_rectangle(x + 18, y - 5 + arm_right_y_offset + body_y_offset, x + 25, y + 15 + arm_right_y_offset + body_y_offset, 
+							   fill=shirt_color, outline="#000000", width=1)
 		# Hands
-		canvas.create_oval(x - 28, y + 12, x - 20, y + 20, fill="#fdbcb4", outline="#000000", width=1)
-		canvas.create_oval(x + 20, y + 12, x + 28, y + 20, fill="#fdbcb4", outline="#000000", width=1)
+		canvas.create_oval(x - 28, y + 12 + arm_left_y_offset + body_y_offset, x - 20, y + 20 + arm_left_y_offset + body_y_offset, 
+						  fill="#fdbcb4", outline="#000000", width=1)
+		canvas.create_oval(x + 20, y + 12 + arm_right_y_offset + body_y_offset, x + 28, y + 20 + arm_right_y_offset + body_y_offset, 
+						  fill="#fdbcb4", outline="#000000", width=1)
 		
 		# Neck
-		canvas.create_rectangle(x - 6, y - 15, x + 6, y - 10, fill="#fdbcb4", outline="#000000", width=1)
+		canvas.create_rectangle(x - 6, y - 15 + body_y_offset, x + 6, y - 10 + body_y_offset, fill="#fdbcb4", outline="#000000", width=1)
 		
-		# Head
-		canvas.create_oval(x - 15, y - 40, x + 15, y - 15, fill="#fdbcb4", outline="#000000", width=2)
+		# Head (with optional bobbing from walk animation)
+		head_y_offset = 0
+		if hasattr(self, '_avatar_walk_phase'):
+			import math
+			head_y_offset = int(2 * math.sin(self._avatar_walk_phase))  # Small bob up/down
 		
-		# Face
-		# Eyes
-		canvas.create_oval(x - 8, y - 32, x - 4, y - 28, fill="#000000", outline="")
-		canvas.create_oval(x + 4, y - 32, x + 8, y - 28, fill="#000000", outline="")
-		# Smile
-		canvas.create_arc(x - 6, y - 28, x + 6, y - 20, start=200, extent=140, outline="#000000", width=2, style="arc")
+		head_top = y - 40 + head_y_offset + body_y_offset
+		head_bottom = y - 15 + head_y_offset + body_y_offset
+		canvas.create_oval(x - 15, head_top, x + 15, head_bottom, fill="#fdbcb4", outline="#000000", width=2)
+		
+		# Face with blinking animation
+		eye_y_top = y - 32 + head_y_offset + body_y_offset
+		eye_y_bottom = y - 28 + head_y_offset + body_y_offset
+		
+		# Check if blinking
+		blink_active = False
+		blink_progress = 0.0
+		if hasattr(self, '_blink_state'):
+			blink_active = self._blink_state.get("active", False)
+			blink_progress = self._blink_state.get("progress", 0.0)
+		
+		if blink_active and blink_progress < 0.5:
+			# Eyes closing (draw horizontal lines instead of ovals)
+			canvas.create_line(x - 8, eye_y_top + 2, x - 4, eye_y_top + 2, fill="#000000", width=2)
+			canvas.create_line(x + 4, eye_y_top + 2, x + 8, eye_y_top + 2, fill="#000000", width=2)
+		else:
+			# Eyes open
+			canvas.create_oval(x - 8, eye_y_top, x - 4, eye_y_bottom, fill="#000000", outline="")
+			canvas.create_oval(x + 4, eye_y_top, x + 8, eye_y_bottom, fill="#000000", outline="")
+		
+		# Mouth (change based on random events)
+		mouth_y_top = y - 28 + head_y_offset + body_y_offset
+		mouth_y_bottom = y - 20 + head_y_offset + body_y_offset
+		mouth_style = "smile"  # default
+		if hasattr(self, '_random_event'):
+			event_type = self._random_event.get("type")
+			if event_type == "jump":
+				mouth_style = "o"  # Surprised expression
+		
+		if mouth_style == "o":
+			canvas.create_oval(x - 4, mouth_y_top, x + 4, mouth_y_top + 8, fill="#000000", outline="")
+		else:
+			# Smile
+			canvas.create_arc(x - 6, mouth_y_top, x + 6, mouth_y_bottom, start=200, extent=140, outline="#000000", width=2, style="arc")
 		
 		# Hat
 		hat = self._avatar_state["hat"]
+		hat_y_offset = head_y_offset + body_y_offset
 		if hat == "baseball_cap":
 			# Cap top
-			canvas.create_arc(x - 16, y - 45, x + 16, y - 30, start=0, extent=180, fill="#ff4500", outline="#000000", width=2, style="pieslice")
+			canvas.create_arc(x - 16, y - 45 + hat_y_offset, x + 16, y - 30 + hat_y_offset, start=0, extent=180, fill="#ff4500", outline="#000000", width=2, style="pieslice")
 			# Bill
-			canvas.create_polygon(x - 16, y - 37, x - 25, y - 35, x - 25, y - 33, x - 16, y - 35, fill="#ff4500", outline="#000000", width=1)
+			canvas.create_polygon(x - 16, y - 37 + hat_y_offset, x - 25, y - 35 + hat_y_offset, x - 25, y - 33 + hat_y_offset, x - 16, y - 35 + hat_y_offset, fill="#ff4500", outline="#000000", width=1)
 		elif hat == "beanie":
-			canvas.create_arc(x - 16, y - 48, x + 16, y - 28, start=0, extent=180, fill="#4b0082", outline="#000000", width=2, style="pieslice")
-			canvas.create_oval(x - 3, y - 48, x + 3, y - 42, fill="#9370db", outline="#000000", width=1)  # Pom-pom
+			canvas.create_arc(x - 16, y - 48 + hat_y_offset, x + 16, y - 28 + hat_y_offset, start=0, extent=180, fill="#4b0082", outline="#000000", width=2, style="pieslice")
+			canvas.create_oval(x - 3, y - 48 + hat_y_offset, x + 3, y - 42 + hat_y_offset, fill="#9370db", outline="#000000", width=1)  # Pom-pom
 		elif hat == "top_hat":
-			canvas.create_rectangle(x - 12, y - 55, x + 12, y - 40, fill="#000000", outline="#000000", width=2)
-			canvas.create_rectangle(x - 16, y - 42, x + 16, y - 38, fill="#000000", outline="#000000", width=2)
+			canvas.create_rectangle(x - 12, y - 55 + hat_y_offset, x + 12, y - 40 + hat_y_offset, fill="#000000", outline="#000000", width=2)
+			canvas.create_rectangle(x - 16, y - 42 + hat_y_offset, x + 16, y - 38 + hat_y_offset, fill="#000000", outline="#000000", width=2)
 		elif hat == "crown":
 			# Crown base
-			canvas.create_rectangle(x - 14, y - 45, x + 14, y - 38, fill="#ffd700", outline="#ff8c00", width=2)
+			canvas.create_rectangle(x - 14, y - 45 + hat_y_offset, x + 14, y - 38 + hat_y_offset, fill="#ffd700", outline="#ff8c00", width=2)
 			# Crown points
-			canvas.create_polygon(x - 14, y - 45, x - 10, y - 50, x - 6, y - 45, fill="#ffd700", outline="#ff8c00", width=1)
-			canvas.create_polygon(x - 4, y - 45, x, y - 52, x + 4, y - 45, fill="#ffd700", outline="#ff8c00", width=1)
-			canvas.create_polygon(x + 6, y - 45, x + 10, y - 50, x + 14, y - 45, fill="#ffd700", outline="#ff8c00", width=1)
+			canvas.create_polygon(x - 14, y - 45 + hat_y_offset, x - 10, y - 50 + hat_y_offset, x - 6, y - 45 + hat_y_offset, fill="#ffd700", outline="#ff8c00", width=1)
+			canvas.create_polygon(x - 4, y - 45 + hat_y_offset, x, y - 52 + hat_y_offset, x + 4, y - 45 + hat_y_offset, fill="#ffd700", outline="#ff8c00", width=1)
+			canvas.create_polygon(x + 6, y - 45 + hat_y_offset, x + 10, y - 50 + hat_y_offset, x + 14, y - 45 + hat_y_offset, fill="#ffd700", outline="#ff8c00", width=1)
 			# Jewels
-			canvas.create_oval(x - 2, y - 42, x + 2, y - 40, fill="#ff0000", outline="")
+			canvas.create_oval(x - 2, y - 42 + hat_y_offset, x + 2, y - 40 + hat_y_offset, fill="#ff0000", outline="")
 		elif hat == "hat_wizard":
 			# Wizard hat (purple cone with brim)
-			canvas.create_polygon(x - 8, y - 45, x, y - 65, x + 8, y - 45, fill="#6a0dad", outline="#000000", width=2)
-			canvas.create_oval(x - 14, y - 42, x + 14, y - 38, fill="#4b0082", outline="#000000", width=2)
+			canvas.create_polygon(x - 8, y - 45 + hat_y_offset, x, y - 65 + hat_y_offset, x + 8, y - 45 + hat_y_offset, fill="#6a0dad", outline="#000000", width=2)
+			canvas.create_oval(x - 14, y - 42 + hat_y_offset, x + 14, y - 38 + hat_y_offset, fill="#4b0082", outline="#000000", width=2)
 		elif hat == "hat_sombrero":
 			# Sombrero (wide brim, small top)
-			canvas.create_oval(x - 20, y - 40, x + 20, y - 36, fill="#d2b48c", outline="#000000", width=2)
-			canvas.create_arc(x - 10, y - 50, x + 10, y - 34, start=0, extent=180, fill="#f4a460", outline="#000000", width=2, style="pieslice")
+			canvas.create_oval(x - 20, y - 40 + hat_y_offset, x + 20, y - 36 + hat_y_offset, fill="#d2b48c", outline="#000000", width=2)
+			canvas.create_arc(x - 10, y - 50 + hat_y_offset, x + 10, y - 34 + hat_y_offset, start=0, extent=180, fill="#f4a460", outline="#000000", width=2, style="pieslice")
 		elif hat == "hat_viking":
 			# Viking helmet (gray with horns)
-			canvas.create_arc(x - 16, y - 45, x + 16, y - 30, start=0, extent=180, fill="#c0c0c0", outline="#000000", width=2, style="pieslice")
-			canvas.create_polygon(x - 16, y - 40, x - 26, y - 55, x - 20, y - 40, fill="#fff8dc", outline="#000000", width=1)
-			canvas.create_polygon(x + 16, y - 40, x + 26, y - 55, x + 20, y - 40, fill="#fff8dc", outline="#000000", width=1)
+			canvas.create_arc(x - 16, y - 45 + hat_y_offset, x + 16, y - 30 + hat_y_offset, start=0, extent=180, fill="#c0c0c0", outline="#000000", width=2, style="pieslice")
+			canvas.create_polygon(x - 16, y - 40 + hat_y_offset, x - 26, y - 55 + hat_y_offset, x - 20, y - 40 + hat_y_offset, fill="#fff8dc", outline="#000000", width=1)
+			canvas.create_polygon(x + 16, y - 40 + hat_y_offset, x + 26, y - 55 + hat_y_offset, x + 20, y - 40 + hat_y_offset, fill="#fff8dc", outline="#000000", width=1)
 		elif hat == "hat_halo":
 			# Halo (golden ring above head)
-			canvas.create_oval(x - 12, y - 58, x + 12, y - 54, fill="#ffd700", outline="#ff8c00", width=2)
+			canvas.create_oval(x - 12, y - 58 + hat_y_offset, x + 12, y - 54 + hat_y_offset, fill="#ffd700", outline="#ff8c00", width=2)
 		# If hat == "none", draw nothing
 	
 	def _draw_pets(self):
@@ -1849,8 +2421,15 @@ class TodoApp:
 		if not hasattr(self, 'pets'):
 			return
 		canvas = self.avatar_canvas
+		
+		# Get canvas dimensions
+		width = canvas.winfo_width() if canvas.winfo_width() > 10 else 600
+		height = canvas.winfo_height() if canvas.winfo_height() > 10 else 400
+		
 		for pet in self.pets:
-			x, y = pet.get("x", 100), pet.get("y", 100)
+			# Convert normalized position to pixel coordinates
+			x = int(pet.get("x", 0.5) * width)
+			y = int(pet.get("y", 0.5) * height)
 			ptype = pet.get("type", "pet_cat")
 			if ptype == "pet_cat":
 				# Body
@@ -1878,35 +2457,55 @@ class TodoApp:
 
 	def _move_avatar(self, direction):
 		"""Move avatar in the specified direction."""
-		# Update state
+		import time
+		# Reset idle timer so auto-walk pauses when user moves manually
+		self._last_user_move_time = time.time()
+		
+		# Get canvas dimensions (no update_idletasks to avoid flashing)
+		canvas = self.avatar_canvas
+		width = canvas.winfo_width() if canvas.winfo_width() > 10 else 600
+		height = canvas.winfo_height() if canvas.winfo_height() > 10 else 400
+		
+		# Convert pixel step to normalized coordinates
+		step_x = 10.0 / width  # Normalized step for horizontal movement
+		step_y = 10.0 / height  # Normalized step for vertical movement
+		
+		# Get current normalized position
+		x = self._avatar_state["x"]
+		y = self._avatar_state["y"]
+		
+		# Calculate normalized bounds with wall collision
+		wall_depth_norm = 0.2  # Top wall takes 20% of height
+		side_wall_width_norm = 0.08  # Side walls take 8% of width
+		margin_x = 60.0 / width  # Horizontal margin for avatar size
+		margin_y = 60.0 / height  # Vertical margin for avatar size
+		
+		# Left wall collision boundary (side wall + margin)
+		left_boundary = side_wall_width_norm + margin_x
+		# Right wall collision boundary (1.0 - side wall - margin)
+		right_boundary = 1.0 - side_wall_width_norm - margin_x
+		# Top boundary (back wall + margin)
+		top_boundary = wall_depth_norm + margin_y
+		# Bottom boundary
+		bottom_boundary = 1.0 - margin_y
+		
+		# Update position based on direction with wall collision
+		if direction == "up":
+			y = max(top_boundary, y - step_y)  # Don't go into back wall
+		elif direction == "down":
+			y = min(bottom_boundary, y + step_y)  # Don't go past floor
+		elif direction == "left":
+			x = max(left_boundary, x - step_x)  # Don't go into left wall
+		elif direction == "right":
+			x = min(right_boundary, x + step_x)  # Don't go into right wall
+		
+		# Update state with normalized coordinates
+		self._avatar_state["x"] = x
+		self._avatar_state["y"] = y
 		self._avatar_state["direction"] = direction
 		
-		# Use enhanced 2D, 3D, or basic 2D movement
-		if hasattr(self, 'avatar_3d_widget') and self.avatar_3d_widget:
-			# Use enhanced 2D or 3D widget movement
-			self.avatar_3d_widget.move_avatar(direction)
-		else:
-			# Use 2D movement
-			step = 10
-			x = self._avatar_state["x"]
-			y = self._avatar_state["y"]
-			
-			# Update position based on direction
-			if direction == "up":
-				y = max(70, y - step)  # Don't go into wall
-			elif direction == "down":
-				y = min(350, y + step)  # Don't go past floor
-			elif direction == "left":
-				x = max(60, x - step)  # Don't go into left wall
-			elif direction == "right":
-				x = min(540, x + step)  # Don't go into right wall
-			
-			# Update state
-			self._avatar_state["x"] = x
-			self._avatar_state["y"] = y
-			
-			# Redraw 2D room
-			self._draw_avatar_room()
+		# Request redraw instead of calling directly to avoid flashing
+		self._request_redraw()
 		
 		# Save avatar position
 		self._save_avatar_state()
@@ -1940,13 +2539,8 @@ class TodoApp:
 		if locked:
 			messagebox.showinfo("Locked", f"These items are locked: {', '.join(locked)}\nLevel up to unlock them!")
 		
-		# Update avatar appearance (enhanced 2D, 3D, or basic 2D)
-		if hasattr(self, 'avatar_3d_widget') and self.avatar_3d_widget:
-			# Update enhanced 2D or 3D avatar
-			self.avatar_3d_widget.update_avatar_state(self._avatar_state)
-		else:
-			# Redraw 2D room
-			self._draw_avatar_room()
+		# Request redraw instead of calling directly
+		self._request_redraw()
 		
 		# Save avatar state
 		self._save_avatar_state()
@@ -1956,6 +2550,36 @@ class TodoApp:
 		if not hasattr(self, 'settings'):
 			self.settings = {}
 		self.settings['avatar'] = self._avatar_state.copy()
+		self._save_settings()
+	
+	def _toggle_avatar_section(self, section):
+		"""Toggle collapsible avatar customization sections."""
+		is_expanded = self._avatar_sections_expanded.get(section, False)
+		
+		# Toggle state
+		self._avatar_sections_expanded[section] = not is_expanded
+		
+		# Get the appropriate frame and button
+		frames = {
+			"hats": (self.hat_content_frame, self.hat_toggle_btn, "Hats"),
+			"shirts": (self.shirt_content_frame, self.shirt_toggle_btn, "Shirts"),
+			"pants": (self.pants_content_frame, self.pants_toggle_btn, "Pants"),
+			"pets": (self.pets_content_frame, self.pets_toggle_btn, "Pets"),
+			"colors": (self.colors_content_frame, self.colors_toggle_btn, "Room Customization")
+		}
+		
+		if section in frames:
+			content_frame, toggle_btn, label = frames[section]
+			
+			if self._avatar_sections_expanded[section]:
+				# Expand: show content
+				content_frame.pack(fill="x", pady=(0, 5))
+				toggle_btn.configure(text=f"▼ {label}")
+			else:
+				# Collapse: hide content
+				content_frame.pack_forget()
+				toggle_btn.configure(text=f"▶ {label}")
+	
 	def _award_xp(self, amount):
 		"""Award XP and check for level up and unlocks."""
 		old_level = self.level
@@ -2008,13 +2632,24 @@ class TodoApp:
 			)
 	
 	def _add_pet(self, pet_type):
-		"""Add a new pet to the avatar room."""
-		# Initialize pet in a random position
+		"""Add a new pet to the avatar room with normalized coordinates."""
+		# Initialize pet in a random position (normalized 0.0-1.0)
+		# Avoid wall areas: side walls are 8% on each side, back wall is top 20%
 		import random
+		side_wall_width_norm = 0.08
+		wall_depth_norm = 0.2
+		margin = 0.1  # Extra margin for safety
+		
+		# Safe area: between side walls and below back wall
+		min_x = side_wall_width_norm + margin
+		max_x = 1.0 - side_wall_width_norm - margin
+		min_y = wall_depth_norm + margin
+		max_y = 0.85  # Keep away from very bottom
+		
 		pet = {
 			"type": pet_type,
-			"x": random.randint(100, 500),
-			"y": random.randint(100, 300),
+			"x": random.uniform(min_x, max_x),  # Normalized x position (avoid side walls)
+			"y": random.uniform(min_y, max_y),  # Normalized y position (avoid back wall)
 			"direction": random.choice(["left", "right"])
 		}
 		self.pets.append(pet)
@@ -2037,58 +2672,1219 @@ class TodoApp:
 		want = bool(self.pet_vars.get(pet_key).get())
 		if want and pet_key not in present_types:
 			self._add_pet(pet_key)
-			# Update enhanced 2D, 3D, or basic 2D display
-			if hasattr(self, 'avatar_3d_widget') and self.avatar_3d_widget:
-				self.avatar_3d_widget.add_pet(pet_key)
-			else:
-				self._draw_avatar_room()
+			self._request_redraw()
 		elif not want and pet_key in present_types:
 			self.pets = [p for p in self.pets if p.get("type") != pet_key]
 			self._save_pets_state()
-			# Update enhanced 2D, 3D, or basic 2D display
-			if hasattr(self, 'avatar_3d_widget') and self.avatar_3d_widget:
-				self.avatar_3d_widget.remove_pet(pet_key)
-			else:
-				self._draw_avatar_room()
-				# Stop animation if no pets left (2D only)
-				if not self.pets and hasattr(self, '_avatar_animation_id'):
-					try:
-						self.avatar_canvas.after_cancel(self._avatar_animation_id)
-					except Exception:
-						pass
+			self._request_redraw()
+			# Animation continues even without pets (for window/avatar animations)
+			# No need to stop the animation loop
 	
-	def _animate_pets(self):
-		"""Animate pets walking around the room."""
-		if not hasattr(self, 'avatar_canvas'):
+	def _set_room_color(self, color_type, color):
+		"""Set floor or wall color and save settings."""
+		if not hasattr(self, '_room_colors'):
+			self._room_colors = {"floor": "#e8dcc0", "wall": "#a8a8a8"}
+		
+		self._room_colors[color_type] = color
+		
+		# Save to settings
+		if not hasattr(self, 'settings'):
+			self.settings = {}
+		self.settings['room_colors'] = self._room_colors
+		self._save_settings()
+		
+		# Redraw room
+		self._request_redraw()
+	
+	def _set_window_count(self, count):
+		"""Set number of windows on back wall and save settings."""
+		self._window_count = count
+		
+		# Save to settings
+		if not hasattr(self, 'settings'):
+			self.settings = {}
+		self.settings['window_count'] = count
+		self._save_settings()
+		
+		# Redraw room
+		self._request_redraw()
+	
+	def _get_builtin_furniture(self):
+		"""Return dictionary of built-in furniture items with their render functions."""
+		return {
+			# Rugs
+			"Round Rug": {"category": "rug", "size": 0.15, "color": "#8b4513"},
+			"Square Rug": {"category": "rug", "size": 0.15, "color": "#a0522d"},
+			"Blue Rug": {"category": "rug", "size": 0.15, "color": "#4169e1"},
+			"Red Rug": {"category": "rug", "size": 0.15, "color": "#dc143c"},
+			"Green Rug": {"category": "rug", "size": 0.15, "color": "#228b22"},
+			
+			# Furniture
+			"Small Table": {"category": "furniture", "size": 0.10, "color": "#8b4513"},
+			"Large Table": {"category": "furniture", "size": 0.15, "color": "#654321"},
+			"Bookshelf": {"category": "furniture", "size": 0.12, "color": "#8b7355"},
+			"Chair": {"category": "furniture", "size": 0.08, "color": "#a0522d"},
+			"Plant": {"category": "furniture", "size": 0.08, "color": "#6b8e23"},
+			"Sofa": {"category": "furniture", "size": 0.18, "color": "#8b4789"},
+			"Desk": {"category": "furniture", "size": 0.14, "color": "#d2691e"},
+			
+			# Posters
+			"Star Poster": {"category": "poster", "size": 0.08, "color": "#ffd700"},
+			"Heart Poster": {"category": "poster", "size": 0.08, "color": "#ff69b4"},
+			"Moon Poster": {"category": "poster", "size": 0.08, "color": "#e6e6fa"},
+			"Sun Poster": {"category": "poster", "size": 0.08, "color": "#ffff00"},
+			"Music Poster": {"category": "poster", "size": 0.08, "color": "#4169e1"},
+		}
+	
+	def _open_furniture_window(self):
+		"""Open furniture placement window with drag-and-drop."""
+		# Check if window already exists
+		if hasattr(self, '_furniture_window') and self._furniture_window.winfo_exists():
+			self._furniture_window.lift()
 			return
 		
-		import random
+		# Initialize placed items if not exists
+		if not hasattr(self, '_placed_items'):
+			if hasattr(self, 'settings') and 'placed_items' in self.settings:
+				self._placed_items = self.settings['placed_items']
+			else:
+				self._placed_items = []
 		
-		for pet in self.pets:
-			# Random movement
+		# Create popup window
+		self._furniture_window = tk.Toplevel(self.root)
+		self._furniture_window.title("Place Furniture & Decorations")
+		self._furniture_window.geometry("350x600")
+		self._furniture_window.transient(self.root)
+		
+		# Main container
+		main_frame = tk.Frame(self._furniture_window)
+		main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+		
+		# Instructions
+		instructions = tk.Label(main_frame, 
+							   text="Drag items from this list to your room!\nRight-click items in room to delete.",
+							   font=("", 9), justify="center", wraplength=320)
+		instructions.pack(pady=(0, 10))
+		
+		# Category tabs
+		category_frame = tk.Frame(main_frame)
+		category_frame.pack(fill="x", pady=(0, 10))
+		
+		self._furniture_category = tk.StringVar(value="All")
+		categories = ["All", "Rug", "Furniture", "Poster"]
+		
+		for cat in categories:
+			btn = tk.Radiobutton(category_frame, text=cat, variable=self._furniture_category,
+							   value=cat, command=self._refresh_furniture_list)
+			btn.pack(side="left", padx=5)
+		
+		# Scrollable furniture list with preview
+		list_frame = tk.Frame(main_frame)
+		list_frame.pack(fill="both", expand=True)
+		
+		scrollbar = tk.Scrollbar(list_frame)
+		scrollbar.pack(side="right", fill="y")
+		
+		# Canvas for furniture items (to show visual previews)
+		self._furniture_canvas = tk.Canvas(list_frame, yscrollcommand=scrollbar.set, 
+										  bg="white", highlightthickness=1)
+		self._furniture_canvas.pack(side="left", fill="both", expand=True)
+		scrollbar.config(command=self._furniture_canvas.yview)
+		
+		# Clear placed items button
+		clear_frame = tk.Frame(main_frame)
+		clear_frame.pack(fill="x", pady=(10, 0))
+		
+		clear_btn = tk.Button(clear_frame, text="🗑️ Clear All Placed Items", 
+							 command=self._clear_all_placed_items, fg="red")
+		clear_btn.pack(fill="x")
+		
+		# Populate list
+		self._refresh_furniture_list()
+		
+		# Bind drag events on avatar canvas
+		self.avatar_canvas.bind("<Button-3>", self._on_room_right_click)
+	
+	def _refresh_furniture_list(self):
+		"""Refresh the furniture list based on category filter."""
+		canvas = self._furniture_canvas
+		canvas.delete("all")
+		
+		furniture_items = self._get_builtin_furniture()
+		filter_cat = self._furniture_category.get().lower()
+		
+		y_pos = 10
+		item_height = 60
+		
+		for item_name, item_data in furniture_items.items():
+			item_cat = item_data["category"]
+			
+			# Apply filter
+			if filter_cat != "all" and item_cat != filter_cat:
+				continue
+			
+			# Draw item preview box
+			x1, y1 = 10, y_pos
+			x2, y2 = 320, y_pos + item_height
+			
+			# Background
+			canvas.create_rectangle(x1, y1, x2, y2, fill="#f0f0f0", outline="#999", width=2)
+			
+			# Preview of item (small visual representation)
+			preview_x = x1 + 30
+			preview_y = y1 + item_height // 2
+			preview_size = 25
+			
+			self._draw_furniture_preview(canvas, item_name, item_data, 
+										preview_x, preview_y, preview_size)
+			
+			# Item name
+			canvas.create_text(x1 + 70, y1 + item_height // 2, 
+							  text=item_name, anchor="w", font=("", 10, "bold"))
+			
+			# Make item draggable
+			item_id = canvas.create_rectangle(x1, y1, x2, y2, fill="", outline="", width=0)
+			canvas.tag_bind(item_id, "<Button-1>", 
+						   lambda e, name=item_name, data=item_data: self._start_drag_furniture(e, name, data))
+			
+			y_pos += item_height + 10
+		
+		# Update scroll region
+		canvas.configure(scrollregion=canvas.bbox("all"))
+	
+	def _draw_furniture_preview(self, canvas, item_name, item_data, x, y, size):
+		"""Draw a small preview of the furniture item."""
+		category = item_data["category"]
+		color = item_data.get("color", "#888")
+		
+		if category == "rug":
+			# Draw rug shapes
+			if "Round" in item_name:
+				canvas.create_oval(x - size, y - size, x + size, y + size, 
+								 fill=color, outline="#000", width=2)
+			else:
+				canvas.create_rectangle(x - size, y - size, x + size, y + size, 
+									  fill=color, outline="#000", width=2)
+		
+		elif category == "furniture":
+			# Draw furniture representations
+			if "Table" in item_name:
+				# Table top and legs
+				canvas.create_rectangle(x - size, y - size//2, x + size, y + size//2, 
+									  fill=color, outline="#000", width=2)
+				leg_size = size // 4
+				canvas.create_rectangle(x - size + leg_size, y + size//2, 
+									  x - size + 2*leg_size, y + size, fill=color, outline="#000")
+				canvas.create_rectangle(x + size - 2*leg_size, y + size//2, 
+									  x + size - leg_size, y + size, fill=color, outline="#000")
+			
+			elif "Bookshelf" in item_name:
+				# Bookshelf with shelves
+				canvas.create_rectangle(x - size, y - size, x + size, y + size, 
+									  fill=color, outline="#000", width=2)
+				canvas.create_line(x - size, y - size//3, x + size, y - size//3, fill="#000", width=1)
+				canvas.create_line(x - size, y + size//3, x + size, y + size//3, fill="#000", width=1)
+			
+			elif "Chair" in item_name:
+				# Simple chair
+				canvas.create_rectangle(x - size, y, x + size, y + size, 
+									  fill=color, outline="#000", width=2)
+				canvas.create_rectangle(x - size, y - size, x + size, y, 
+									  fill=color, outline="#000", width=2)
+			
+			elif "Plant" in item_name:
+				# Plant in pot
+				canvas.create_oval(x - size, y - size, x + size, y + size//2, 
+								 fill="#6b8e23", outline="#000", width=2)
+				canvas.create_rectangle(x - size//2, y + size//2, x + size//2, y + size, 
+									  fill="#8b4513", outline="#000", width=1)
+			
+			elif "Sofa" in item_name:
+				# Sofa shape
+				canvas.create_rectangle(x - size, y - size//2, x + size, y + size, 
+									  fill=color, outline="#000", width=2)
+				canvas.create_rectangle(x - size, y - size, x + size, y - size//2, 
+									  fill=color, outline="#000", width=2)
+			
+			elif "Desk" in item_name:
+				# Desk
+				canvas.create_rectangle(x - size, y - size//3, x + size, y + size//3, 
+									  fill=color, outline="#000", width=2)
+				canvas.create_rectangle(x - size//2, y + size//3, x - size//3, y + size, 
+									  fill=color, outline="#000")
+				canvas.create_rectangle(x + size//3, y + size//3, x + size//2, y + size, 
+									  fill=color, outline="#000")
+		
+		elif category == "poster":
+			# Draw poster shapes
+			canvas.create_rectangle(x - size, y - size, x + size, y + size, 
+								  fill=color, outline="#000", width=2)
+			
+			if "Star" in item_name:
+				# Star shape
+				points = []
+				import math
+				for i in range(10):
+					angle = math.pi / 2 + i * 2 * math.pi / 10
+					r = size * 0.4 if i % 2 == 0 else size * 0.7
+					px = x + r * math.cos(angle)
+					py = y - r * math.sin(angle)
+					points.extend([px, py])
+				canvas.create_polygon(points, fill="#fff", outline="")
+			
+			elif "Heart" in item_name:
+				# Simple heart indicator
+				canvas.create_text(x, y, text="♥", font=("", int(size * 1.5)), fill="#fff")
+			
+			elif "Moon" in item_name:
+				# Crescent moon
+				canvas.create_oval(x - size//2, y - size//2, x + size//2, y + size//2, 
+								 fill="#fff", outline="")
+			
+			elif "Sun" in item_name:
+				# Sun
+				canvas.create_oval(x - size//2, y - size//2, x + size//2, y + size//2, 
+								 fill="#fff", outline="")
+			
+			elif "Music" in item_name:
+				# Music note
+				canvas.create_text(x, y, text="♪", font=("", int(size * 1.5)), fill="#fff")
+	
+	def _start_drag_furniture(self, event, item_name, item_data):
+		"""Start dragging furniture item from list."""
+		# Store drag data
+		self._drag_furniture = {
+			"name": item_name,
+			"data": item_data,
+			"active": True
+		}
+		
+		# Create dragging cursor indicator
+		self._furniture_window.config(cursor="hand2")
+		
+		# Bind motion to avatar canvas to show where it will be placed
+		self.avatar_canvas.bind("<Motion>", self._drag_furniture_motion)
+		self.avatar_canvas.bind("<Button-1>", self._drop_furniture)
+	
+	def _drag_furniture_motion(self, event):
+		"""Show preview of furniture being dragged over room."""
+		if not hasattr(self, '_drag_furniture') or not self._drag_furniture.get("active"):
+			return
+		
+		# Remove previous ghost preview
+		if hasattr(self, '_drag_ghost_id'):
+			self.avatar_canvas.delete(self._drag_ghost_id)
+		
+		# Get position
+		canvas = self.avatar_canvas
+		width = canvas.winfo_width()
+		height = canvas.winfo_height()
+		
+		x_norm = event.x / width
+		y_norm = event.y / height
+		
+		# Apply wall collision preview
+		category = self._drag_furniture["data"]["category"]
+		if category in ("rug", "furniture"):
+			side_wall_width_norm = 0.08
+			wall_depth_norm = 0.2
+			margin = 0.05
+			min_x = side_wall_width_norm + margin
+			max_x = 1.0 - side_wall_width_norm - margin
+			min_y = wall_depth_norm + margin
+			max_y = 0.95 - margin
+			x_norm = max(min_x, min(max_x, x_norm))
+			y_norm = max(min_y, min(max_y, y_norm))
+		elif category == "poster":
+			min_y = 0.05
+			max_y = 0.18
+			y_norm = max(min_y, min(max_y, y_norm))
+		
+		# Draw ghost preview (semi-transparent representation)
+		x = int(width * x_norm)
+		y = int(height * y_norm)
+		size = int(min(width, height) * self._drag_furniture["data"]["size"])
+		
+		# Create ghost outline
+		if category in ("rug", "furniture"):
+			if "Round" in self._drag_furniture["name"]:
+				self._drag_ghost_id = canvas.create_oval(
+					x - size, y - size, x + size, y + size,
+					fill="", outline="#00ff00", width=3, dash=(5, 5))
+			else:
+				self._drag_ghost_id = canvas.create_rectangle(
+					x - size, y - size, x + size, y + size,
+					fill="", outline="#00ff00", width=3, dash=(5, 5))
+		else:  # poster
+			self._drag_ghost_id = canvas.create_rectangle(
+				x - size, y - size, x + size, y + size,
+				fill="", outline="#00ff00", width=3, dash=(5, 5))
+		
+		self.avatar_canvas.config(cursor="crosshair")
+	
+	def _drop_furniture(self, event):
+		"""Drop furniture item into the room."""
+		if not hasattr(self, '_drag_furniture') or not self._drag_furniture.get("active"):
+			return
+		
+		# Get normalized position (0-1 range)
+		canvas = self.avatar_canvas
+		width = canvas.winfo_width()
+		height = canvas.winfo_height()
+		
+		x_norm = event.x / width
+		y_norm = event.y / height
+		
+		# Apply wall collision for rugs and furniture
+		category = self._drag_furniture["data"]["category"]
+		if category in ("rug", "furniture"):
+			side_wall_width_norm = 0.08
+			wall_depth_norm = 0.2
+			margin = 0.05
+			
+			min_x = side_wall_width_norm + margin
+			max_x = 1.0 - side_wall_width_norm - margin
+			min_y = wall_depth_norm + margin
+			max_y = 0.95 - margin
+			
+			x_norm = max(min_x, min(max_x, x_norm))
+			y_norm = max(min_y, min(max_y, y_norm))
+		elif category == "poster":
+			# Posters go on back wall
+			min_y = 0.05
+			max_y = 0.18
+			y_norm = max(min_y, min(max_y, y_norm))
+		
+		# Add to placed items
+		placed_item = {
+			"name": self._drag_furniture["name"],
+			"category": category,
+			"x": x_norm,
+			"y": y_norm,
+			"size": self._drag_furniture["data"]["size"],
+			"color": self._drag_furniture["data"]["color"]
+		}
+		
+		self._placed_items.append(placed_item)
+		self._save_placed_items()
+		
+		# Clear drag state
+		self._drag_furniture["active"] = False
+		self._furniture_window.config(cursor="")
+		self.avatar_canvas.config(cursor="")
+		self.avatar_canvas.unbind("<Motion>")
+		self.avatar_canvas.unbind("<Button-1>")
+		
+		# Remove ghost preview
+		if hasattr(self, '_drag_ghost_id'):
+			self.avatar_canvas.delete(self._drag_ghost_id)
+			del self._drag_ghost_id
+		
+		# Redraw room
+		self._request_redraw()
+	
+	def _on_room_right_click(self, event):
+		"""Handle right-click on room to delete placed items."""
+		if not hasattr(self, '_placed_items') or not self._placed_items:
+			return
+		
+		# Get click position in normalized coords
+		canvas = self.avatar_canvas
+		width = canvas.winfo_width()
+		height = canvas.winfo_height()
+		
+		click_x = event.x / width
+		click_y = event.y / height
+		
+		# Find clicked item (check in reverse order so top items are checked first)
+		for i in range(len(self._placed_items) - 1, -1, -1):
+			item = self._placed_items[i]
+			item_x = item["x"]
+			item_y = item["y"]
+			item_size = item["size"]
+			
+			# Check if click is within item bounds
+			if abs(click_x - item_x) < item_size and abs(click_y - item_y) < item_size:
+				# Remove item
+				self._placed_items.pop(i)
+				self._save_placed_items()
+				self._request_redraw()
+				break
+	
+	def _clear_all_placed_items(self):
+		"""Clear all placed furniture items."""
+		if hasattr(self, '_placed_items'):
+			self._placed_items = []
+			self._save_placed_items()
+			self._request_redraw()
+	
+	def _save_placed_items(self):
+		"""Save placed items to settings."""
+		if not hasattr(self, 'settings'):
+			self.settings = {}
+		self.settings['placed_items'] = self._placed_items
+		self._save_settings()
+	
+	def _open_asset_designer_window(self):
+		"""Open Asset Designer in a popup window."""
+		# Check if window already exists
+		if hasattr(self, '_asset_designer_window') and self._asset_designer_window.winfo_exists():
+			self._asset_designer_window.lift()
+			return
+		
+		# Create popup window
+		self._asset_designer_window = tk.Toplevel(self.root)
+		self._asset_designer_window.title("Asset Designer")
+		self._asset_designer_window.geometry("900x600")
+		self._asset_designer_window.transient(self.root)
+		
+		# Main container
+		main_frame = tk.Frame(self._asset_designer_window)
+		main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+		
+		# Left side - Asset list and controls
+		left_frame = tk.Frame(main_frame, width=280)
+		left_frame.pack(side="left", fill="both", expand=False, padx=(0, 10))
+		left_frame.pack_propagate(False)
+		
+		# Title
+		title_label = tk.Label(left_frame, text="Custom Assets", font=("", 14, "bold"))
+		title_label.pack(pady=(0, 10))
+		
+		# Category selection
+		category_frame = tk.Frame(left_frame)
+		category_frame.pack(fill="x", pady=(0, 5))
+		tk.Label(category_frame, text="Category:").pack(side="left", padx=(0, 5))
+		self.asset_category_var = tk.StringVar(value="All")
+		category_dropdown = ttk.Combobox(category_frame, textvariable=self.asset_category_var,
+										 values=["All", "Floor", "Rug", "Furniture", "Poster"],
+										 state="readonly", width=12)
+		category_dropdown.pack(side="left", fill="x", expand=True)
+		category_dropdown.bind("<<ComboboxSelected>>", lambda e: self._refresh_asset_list())
+		
+		# Upload button
+		upload_btn = tk.Button(left_frame, text="📁 Upload PNG Asset", 
+							   command=self._upload_asset, font=("", 10, "bold"))
+		upload_btn.pack(fill="x", pady=(5, 10))
+		
+		# Asset list frame with scrollbar
+		list_frame = tk.Frame(left_frame)
+		list_frame.pack(fill="both", expand=True)
+		
+		scrollbar = tk.Scrollbar(list_frame)
+		scrollbar.pack(side="right", fill="y")
+		
+		self.asset_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, height=12)
+		self.asset_listbox.pack(side="left", fill="both", expand=True)
+		scrollbar.config(command=self.asset_listbox.yview)
+		self.asset_listbox.bind("<<ListboxSelect>>", self._on_asset_select)
+		
+		# Asset controls
+		controls_frame = tk.Frame(left_frame)
+		controls_frame.pack(fill="x", pady=(10, 0))
+		
+		# Category for selected asset
+		tk.Label(controls_frame, text="Asset Category:").pack(anchor="w")
+		self.selected_asset_category_var = tk.StringVar(value="Rug")
+		cat_dropdown = ttk.Combobox(controls_frame, textvariable=self.selected_asset_category_var,
+										values=["Floor", "Rug", "Furniture", "Poster"],
+									state="readonly")
+		cat_dropdown.pack(fill="x", pady=(0, 5))
+		cat_dropdown.bind("<<ComboboxSelected>>", lambda e: self._update_selected_asset())
+		
+		tk.Label(controls_frame, text="Position X (0-1):").pack(anchor="w")
+		self.asset_x_var = tk.DoubleVar(value=0.5)
+		self.asset_x_scale = tk.Scale(controls_frame, from_=0.0, to=1.0, resolution=0.01,
+									  orient="horizontal", variable=self.asset_x_var,
+									  command=self._update_selected_asset)
+		self.asset_x_scale.pack(fill="x")
+		
+		tk.Label(controls_frame, text="Position Y (0-1):").pack(anchor="w")
+		self.asset_y_var = tk.DoubleVar(value=0.5)
+		self.asset_y_scale = tk.Scale(controls_frame, from_=0.0, to=1.0, resolution=0.01,
+									  orient="horizontal", variable=self.asset_y_var,
+									  command=self._update_selected_asset)
+		self.asset_y_scale.pack(fill="x")
+		
+		tk.Label(controls_frame, text="Scale:").pack(anchor="w")
+		self.asset_scale_var = tk.DoubleVar(value=1.0)
+		self.asset_scale_scale = tk.Scale(controls_frame, from_=0.1, to=3.0, resolution=0.1,
+										  orient="horizontal", variable=self.asset_scale_var,
+										  command=self._update_selected_asset)
+		self.asset_scale_scale.pack(fill="x")
+		
+		# Delete button
+		delete_btn = tk.Button(controls_frame, text="🗑️ Delete Selected Asset",
+							   command=self._delete_selected_asset, fg="red")
+		delete_btn.pack(fill="x", pady=(10, 0))
+		
+		# Right side - Preview canvas
+		right_frame = tk.Frame(main_frame)
+		right_frame.pack(side="right", fill="both", expand=True)
+		
+		preview_label = tk.Label(right_frame, text="Preview", font=("", 12, "bold"))
+		preview_label.pack(pady=(0, 5))
+		
+		self.asset_preview_canvas = tk.Canvas(right_frame, bg="#e8dcc0", width=500, height=400)
+		self.asset_preview_canvas.pack(fill="both", expand=True)
+		# Redraw preview whenever the canvas is resized
+		self.asset_preview_canvas.bind("<Configure>", lambda e: self._preview_assets())
+		
+		# Load saved assets
+		if hasattr(self, 'settings') and 'custom_assets' in self.settings:
+			self.custom_assets = self.settings.get('custom_assets', [])
+		
+		self._refresh_asset_list()
+		self._preview_assets()
+	
+	def _setup_asset_designer_tab(self):
+		"""Set up the Asset Designer tab for uploading and placing PNG assets."""
+		# Main container
+		main_frame = tk.Frame(self.asset_designer_tab)
+		main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+		
+		# Left side - Asset list and controls
+		left_frame = tk.Frame(main_frame, width=280)
+		left_frame.pack(side="left", fill="both", expand=False, padx=(0, 10))
+		left_frame.pack_propagate(False)
+		
+		# Title
+		title_label = tk.Label(left_frame, text="Custom Assets", font=("", 14, "bold"))
+		title_label.pack(pady=(0, 10))
+		
+		# Category selection
+		category_frame = tk.Frame(left_frame)
+		category_frame.pack(fill="x", pady=(0, 5))
+		tk.Label(category_frame, text="Category:").pack(side="left", padx=(0, 5))
+		self.asset_category_var = tk.StringVar(value="All")
+		category_dropdown = ttk.Combobox(category_frame, textvariable=self.asset_category_var,
+										 values=["All", "Floor", "Rug", "Furniture", "Poster"],
+										 state="readonly", width=12)
+		category_dropdown.pack(side="left", fill="x", expand=True)
+		category_dropdown.bind("<<ComboboxSelected>>", lambda e: self._refresh_asset_list())
+		
+		# Upload button
+		upload_btn = tk.Button(left_frame, text="📁 Upload PNG Asset", 
+							   command=self._upload_asset, font=("", 10, "bold"))
+		upload_btn.pack(fill="x", pady=(5, 10))
+		
+		# Asset list frame with scrollbar
+		list_frame = tk.Frame(left_frame)
+		list_frame.pack(fill="both", expand=True)
+		
+		scrollbar = tk.Scrollbar(list_frame)
+		scrollbar.pack(side="right", fill="y")
+		
+		self.asset_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, height=12)
+		self.asset_listbox.pack(side="left", fill="both", expand=True)
+		scrollbar.config(command=self.asset_listbox.yview)
+		self.asset_listbox.bind("<<ListboxSelect>>", self._on_asset_select)
+		
+		# Asset controls
+		controls_frame = tk.Frame(left_frame)
+		controls_frame.pack(fill="x", pady=(10, 0))
+		
+		# Category for selected asset
+		tk.Label(controls_frame, text="Asset Category:").pack(anchor="w")
+		self.selected_asset_category_var = tk.StringVar(value="Rug")
+		cat_dropdown = ttk.Combobox(controls_frame, textvariable=self.selected_asset_category_var,
+										values=["Floor", "Rug", "Furniture", "Poster"],
+									state="readonly")
+		cat_dropdown.pack(fill="x", pady=(0, 5))
+		cat_dropdown.bind("<<ComboboxSelected>>", lambda e: self._update_selected_asset())
+		
+		tk.Label(controls_frame, text="Position X (0-1):").pack(anchor="w")
+		self.asset_x_var = tk.DoubleVar(value=0.5)
+		self.asset_x_scale = tk.Scale(controls_frame, from_=0.0, to=1.0, resolution=0.01,
+									  orient="horizontal", variable=self.asset_x_var,
+									  command=self._update_selected_asset)
+		self.asset_x_scale.pack(fill="x")
+		
+		tk.Label(controls_frame, text="Position Y (0-1):").pack(anchor="w")
+		self.asset_y_var = tk.DoubleVar(value=0.5)
+		self.asset_y_scale = tk.Scale(controls_frame, from_=0.0, to=1.0, resolution=0.01,
+									  orient="horizontal", variable=self.asset_y_var,
+									  command=self._update_selected_asset)
+		self.asset_y_scale.pack(fill="x")
+		
+		tk.Label(controls_frame, text="Scale:").pack(anchor="w")
+		self.asset_scale_var = tk.DoubleVar(value=1.0)
+		self.asset_scale_scale = tk.Scale(controls_frame, from_=0.1, to=3.0, resolution=0.1,
+										  orient="horizontal", variable=self.asset_scale_var,
+										  command=self._update_selected_asset)
+		self.asset_scale_scale.pack(fill="x")
+		
+		# Delete button
+		delete_btn = tk.Button(controls_frame, text="🗑️ Delete Selected Asset",
+							   command=self._delete_selected_asset, fg="red")
+		delete_btn.pack(fill="x", pady=(10, 0))
+		
+		# Right side - Preview canvas
+		right_frame = tk.Frame(main_frame)
+		right_frame.pack(side="right", fill="both", expand=True)
+		
+		preview_label = tk.Label(right_frame, text="Preview", font=("", 12, "bold"))
+		preview_label.pack(pady=(0, 5))
+		
+		self.asset_preview_canvas = tk.Canvas(right_frame, bg="#e8dcc0", width=500, height=400)
+		self.asset_preview_canvas.pack(fill="both", expand=True)
+		# Redraw preview whenever the canvas is resized so the room stretches with the window
+		self.asset_preview_canvas.bind("<Configure>", lambda e: self._preview_assets())
+		
+		# Load saved assets
+		if hasattr(self, 'settings') and 'custom_assets' in self.settings:
+			self.custom_assets = self.settings.get('custom_assets', [])
+		
+		self._refresh_asset_list()
+		self._preview_assets()
+	
+	def _upload_asset(self):
+		"""Upload a PNG or GIF file and add it to custom assets."""
+		from tkinter import filedialog, simpledialog
+		import os
+		import shutil
+		
+		filepath = filedialog.askopenfilename(
+			title="Select PNG or GIF Asset",
+			filetypes=[("Image files", "*.png *.gif"), ("PNG files", "*.png"), ("GIF files", "*.gif"), ("All files", "*.*")]
+		)
+		
+		if not filepath:
+			return
+		
+		# Ask for category
+		from tkinter import messagebox
+		category_window = tk.Toplevel(self.root)
+		category_window.title("Select Category")
+		category_window.geometry("300x150")
+		category_window.transient(self.root)
+		category_window.grab_set()
+		
+		selected_category = tk.StringVar(value="Rug")
+		
+		tk.Label(category_window, text="Choose asset category:", font=("", 11, "bold")).pack(pady=(15, 10))
+		
+		for cat in ["Floor", "Rug", "Furniture", "Poster"]:
+			tk.Radiobutton(category_window, text=cat, variable=selected_category, value=cat).pack(anchor="w", padx=30)
+		
+		def confirm():
+			category_window.destroy()
+		
+		tk.Button(category_window, text="OK", command=confirm, width=10).pack(pady=(10, 0))
+		
+		self.root.wait_window(category_window)
+		
+		# Create assets directory if it doesn't exist
+		assets_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_assets")
+		os.makedirs(assets_dir, exist_ok=True)
+		
+		# Copy file to assets directory
+		filename = os.path.basename(filepath)
+		dest_path = os.path.join(assets_dir, filename)
+		
+		# Handle duplicate filenames
+		base, ext = os.path.splitext(filename)
+		counter = 1
+		while os.path.exists(dest_path):
+			filename = f"{base}_{counter}{ext}"
+			dest_path = os.path.join(assets_dir, filename)
+			counter += 1
+		
+		shutil.copy2(filepath, dest_path)
+		
+		# Check if it's an animated GIF
+		is_animated = False
+		frame_count = 1
+		try:
+			from PIL import Image
+			img = Image.open(dest_path)
+			if hasattr(img, 'n_frames'):
+				frame_count = img.n_frames
+				is_animated = frame_count > 1
+			img.close()
+		except:
+			pass
+		
+		# Add to custom assets list with wall-aware positioning
+		category = selected_category.get()
+		
+		# Default position depends on category
+		if category in ("Rug", "Furniture"):
+			# Place furniture/rugs in safe area (avoid walls)
+			default_x = 0.5  # Center horizontally
+			default_y = 0.6  # Centered in floor area (below back wall)
+		elif category == "Poster":
+			# Posters should be on the wall
+			default_x = 0.5
+			default_y = 0.1  # In the back wall area
+		else:  # Floor
+			default_x = 0.5
+			default_y = 0.5
+		
+		asset = {
+			"path": dest_path,
+			"name": filename,
+			"x": default_x,
+			"y": default_y,
+			"scale": 1.0,
+			"category": category,
+			"is_animated": is_animated,
+			"frame_count": frame_count,
+			"current_frame": 0
+		}
+		self.custom_assets.append(asset)
+		self._save_assets()
+		self._refresh_asset_list()
+		self._preview_assets()
+		if hasattr(self, 'avatar_canvas'):
+			self._request_redraw()  # Refresh avatar room
+	
+	def _refresh_asset_list(self):
+		"""Refresh the asset listbox based on selected category filter."""
+		self.asset_listbox.delete(0, tk.END)
+		
+		# Get filter category
+		filter_cat = self.asset_category_var.get() if hasattr(self, 'asset_category_var') else "All"
+		
+		# Create mapping from listbox index to asset index
+		self._asset_index_map = []
+		
+		for i, asset in enumerate(self.custom_assets):
+			category = asset.get("category", "Other")
+			name = asset.get("name", "Unknown")
+			is_animated = asset.get("is_animated", False)
+			
+			# Apply filter
+			if filter_cat == "All" or category == filter_cat:
+				# Add animation indicator
+				anim_indicator = " 🎬" if is_animated else ""
+				display_name = f"[{category}] {name}{anim_indicator}"
+				self.asset_listbox.insert(tk.END, display_name)
+				self._asset_index_map.append(i)
+	
+	def _on_asset_select(self, event):
+		"""Handle asset selection."""
+		selection = self.asset_listbox.curselection()
+		if not selection:
+			return
+		
+		listbox_idx = selection[0]
+		if listbox_idx < len(self._asset_index_map):
+			actual_idx = self._asset_index_map[listbox_idx]
+			asset = self.custom_assets[actual_idx]
+			self.asset_x_var.set(asset.get("x", 0.5))
+			self.asset_y_var.set(asset.get("y", 0.5))
+			self.asset_scale_var.set(asset.get("scale", 1.0))
+			if hasattr(self, 'selected_asset_category_var'):
+				self.selected_asset_category_var.set(asset.get("category", "Other"))
+			self._preview_assets()
+	
+	def _update_selected_asset(self, *args):
+		"""Update selected asset position/scale."""
+		selection = self.asset_listbox.curselection()
+		if not selection:
+			return
+		
+		listbox_idx = selection[0]
+		if listbox_idx < len(self._asset_index_map):
+			actual_idx = self._asset_index_map[listbox_idx]
+			
+			# Get proposed position
+			new_x = self.asset_x_var.get()
+			new_y = self.asset_y_var.get()
+			category = self.selected_asset_category_var.get() if hasattr(self, 'selected_asset_category_var') else self.custom_assets[actual_idx].get("category", "Rug")
+			
+			# Apply wall collision for furniture and rugs (not floor or posters)
+			if category in ("Rug", "Furniture"):
+				side_wall_width_norm = 0.08
+				wall_depth_norm = 0.2
+				margin = 0.05  # Small margin for asset edges
+				
+				# Constrain to safe area (avoid walls)
+				min_x = side_wall_width_norm + margin
+				max_x = 1.0 - side_wall_width_norm - margin
+				min_y = wall_depth_norm + margin
+				max_y = 0.95 - margin
+				
+				new_x = max(min_x, min(max_x, new_x))
+				new_y = max(min_y, min(max_y, new_y))
+				
+				# Update the UI variables to reflect clamped values
+				self.asset_x_var.set(new_x)
+				self.asset_y_var.set(new_y)
+			
+			self.custom_assets[actual_idx]["x"] = new_x
+			self.custom_assets[actual_idx]["y"] = new_y
+			self.custom_assets[actual_idx]["scale"] = self.asset_scale_var.get()
+			if hasattr(self, 'selected_asset_category_var'):
+				self.custom_assets[actual_idx]["category"] = category
+			self._save_assets()
+			self._preview_assets()
+			if hasattr(self, 'avatar_canvas'):
+				self._request_redraw()  # Refresh avatar room
+	
+	def _delete_selected_asset(self):
+		"""Delete the selected asset."""
+		selection = self.asset_listbox.curselection()
+		if not selection:
+			return
+		
+		listbox_idx = selection[0]
+		if listbox_idx < len(self._asset_index_map):
+			actual_idx = self._asset_index_map[listbox_idx]
+			import os
+			# Delete file
+			filepath = self.custom_assets[actual_idx].get("path")
+			if filepath and os.path.exists(filepath):
+				try:
+					os.remove(filepath)
+				except:
+					pass
+			
+			# Remove from list
+			self.custom_assets.pop(actual_idx)
+			self._save_assets()
+			self._refresh_asset_list()
+			self._preview_assets()
+			if hasattr(self, 'avatar_canvas'):
+				self._request_redraw()
+			self._refresh_asset_list()
+			self._preview_assets()
+			self._request_redraw()
+	
+	def _preview_assets(self):
+		"""Preview assets on the canvas with full room background."""
+		canvas = self.asset_preview_canvas
+		canvas.delete("all")
+		
+		width = canvas.winfo_width() if canvas.winfo_width() > 10 else 500
+		height = canvas.winfo_height() if canvas.winfo_height() > 10 else 400
+		
+		# Get custom room colors or use defaults
+		if not hasattr(self, '_room_colors'):
+			self._room_colors = {"floor": "#e8dcc0", "wall": "#a8a8a8"}
+		floor_color = self._room_colors.get("floor", "#e8dcc0")
+		wall_color = self._room_colors.get("wall", "#a8a8a8")
+		
+		# Helper to darken colors
+		import colorsys
+		def darken_color(hex_color, factor=0.9):
+			hex_color = hex_color.lstrip('#')
+			r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+			h, s, v = colorsys.rgb_to_hsv(r/255, g/255, b/255)
+			v = v * factor
+			r, g, b = colorsys.hsv_to_rgb(h, s, v)
+			return f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
+		
+		# Draw floor
+		canvas.create_rectangle(0, 0, width, height, fill=floor_color, outline="")
+		
+		# Draw floor tiles for depth effect (scale to canvas size)
+		tile_color = darken_color(floor_color, 0.85)
+		tile_size = max(30, min(50, width // 15))
+		for y in range(0, height, tile_size):
+			canvas.create_line(0, y, width, y, fill=tile_color, width=1)
+		for x in range(0, width, tile_size):
+			canvas.create_line(x, 0, x, height, fill=tile_color, width=1)
+		
+		# Draw walls (scaled)
+		wall_depth = int(height * 0.2)  # 20% of height
+		side_wall_width = int(width * 0.08)  # 8% of width
+		
+		# Calculate wall shading
+		wall_darker = darken_color(wall_color, 0.7)
+		wall_outline = darken_color(wall_color, 0.6)
+		
+		# Back wall
+		canvas.create_rectangle(0, 0, width, wall_depth, fill=wall_color, outline=wall_outline, width=2)
+		# Side walls (perspective) - extend to bottom and beyond
+		# Left wall extends from top-left corner down past the bottom
+		canvas.create_polygon(0, 0, side_wall_width, wall_depth, side_wall_width, height + 100, 0, height + 100, 
+							 fill=wall_darker, outline=wall_outline, width=2)
+		# Right wall extends from top-right corner down past the bottom
+		canvas.create_polygon(width, 0, width - side_wall_width, wall_depth, width - side_wall_width, height + 100, width, height + 100,
+							 fill=wall_darker, outline=wall_outline, width=2)
+		
+		# Draw furniture/decorations (scaled proportionally)
+		# Plant in corner
+		plant_x = int(width * 0.12)
+		plant_y = int(height * 0.75)
+		plant_size = int(min(width, height) * 0.067)
+		canvas.create_oval(plant_x, plant_y, plant_x + plant_size, plant_y + plant_size, 
+						  fill="#6b8e23", outline="#556b2f", width=2)
+		canvas.create_rectangle(plant_x + plant_size//4, plant_y + plant_size, 
+							   plant_x + 3*plant_size//4, plant_y + int(plant_size * 1.5), 
+							   fill="#8b4513", outline="#654321", width=1)
+		
+		# Table
+		table_x = int(width * 0.75)
+		table_y = int(height * 0.7)
+		table_w = int(width * 0.13)
+		table_h = int(height * 0.05)
+		canvas.create_rectangle(table_x, table_y, table_x + table_w, table_y + table_h, 
+							   fill="#8b4513", outline="#654321", width=2)
+		# Table legs
+		leg_w = int(table_w * 0.125)
+		leg_h = int(height * 0.1)
+		canvas.create_rectangle(table_x + leg_w, table_y + table_h, 
+							   table_x + 2*leg_w, table_y + table_h + leg_h,
+							   fill="#654321", outline="#4a2f1a", width=1)
+		canvas.create_rectangle(table_x + table_w - 2*leg_w, table_y + table_h,
+							   table_x + table_w - leg_w, table_y + table_h + leg_h,
+							   fill="#654321", outline="#4a2f1a", width=1)
+		
+		# Windows on back wall (1-4 windows equally spaced)
+		if not hasattr(self, '_window_count'):
+			self._window_count = 1
+		
+		num_windows = self._window_count
+		window_h = int(wall_depth * 0.5)
+		window_y = int(wall_depth * 0.2)
+		
+		# Fixed window width (same size for all windows)
+		window_w = int(width * 0.15)  # Each window is 15% of width
+		
+		# Calculate spacing to spread windows equally across the wall
+		if num_windows == 1:
+			# Single window centered
+			start_x = (width - window_w) // 2
+			spacing = 0
+		else:
+			# Multiple windows: calculate spacing to spread them evenly
+			# Total space for windows
+			total_window_width = num_windows * window_w
+			# Remaining space for gaps (including margins)
+			remaining_space = width - total_window_width
+			# Divide remaining space into (num_windows + 1) gaps
+			spacing = remaining_space // (num_windows + 1)
+			start_x = spacing
+		
+		for i in range(num_windows):
+			window_x = start_x + i * (window_w + spacing)
+			
+			# Sky background
+			canvas.create_rectangle(window_x, window_y, window_x + window_w, window_y + window_h,
+								   fill="#87ceeb", outline="")
+			# Window frame
+			canvas.create_rectangle(window_x, window_y, window_x + window_w, window_y + window_h,
+								   fill="", outline="#4682b4", width=3)
+			canvas.create_line(window_x + window_w//2, window_y, window_x + window_w//2, window_y + window_h,
+							  fill="#4682b4", width=2)
+			canvas.create_line(window_x, window_y + window_h//2, window_x + window_w, window_y + window_h//2,
+							  fill="#4682b4", width=2)
+		
+		# Draw assets
+		try:
+			from PIL import Image, ImageTk
+			
+			# Keep reference to prevent garbage collection
+			if not hasattr(self, '_asset_preview_images'):
+				self._asset_preview_images = []
+			self._asset_preview_images.clear()
+			
+			# 1) Floor assets stretched across floor area
+			for asset in self.custom_assets:
+				if asset.get("category") != "Floor":
+					continue
+				filepath = asset.get("path")
+				if not filepath:
+					continue
+				img = Image.open(filepath)
+				if img.mode != 'RGBA':
+					img = img.convert('RGBA')
+				new_width = int(width)
+				new_height = max(1, int(height - wall_depth))
+				img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+				photo = ImageTk.PhotoImage(img)
+				self._asset_preview_images.append(photo)
+				canvas.create_image(0, wall_depth, image=photo, anchor="nw")
+
+			# 2) Posters on wall and 3) rugs/furniture on surface
+			for desired_group in ("Poster", "Rug/Furniture"):
+				for asset in self.custom_assets:
+					cat = asset.get("category")
+					if desired_group == "Poster" and cat != "Poster":
+						continue
+					if desired_group == "Rug/Furniture" and cat not in ("Rug", "Furniture"):
+						continue
+
+					filepath = asset.get("path")
+					if not filepath:
+						continue
+					
+					x = int(asset.get("x", 0.5) * width)
+					y = int(asset.get("y", 0.5) * height)
+					scale = asset.get("scale", 1.0)
+					
+					# Load image
+					img = Image.open(filepath)
+					
+					# Handle animated GIFs (show first frame in preview)
+					if asset.get("is_animated", False):
+						try:
+							img.seek(0)
+						except Exception:
+							pass
+					
+					# Convert RGBA if needed
+					if img.mode != 'RGBA':
+						img = img.convert('RGBA')
+					
+					# Scale image
+					new_width = int(img.width * scale)
+					new_height = int(img.height * scale)
+					img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+					photo = ImageTk.PhotoImage(img)
+					
+					self._asset_preview_images.append(photo)
+					canvas.create_image(x, y, image=photo, anchor="center")
+		except ImportError:
+			canvas.create_text(width//2, height//2, 
+							  text="PIL/Pillow required for PNG/GIF support\nInstall: pip install pillow",
+							  font=("", 10), fill="red")
+		except Exception as e:
+			canvas.create_text(width//2, height//2, text=f"Error: {str(e)}", 
+							  font=("", 10), fill="red")
+	
+	def _save_assets(self):
+		"""Save custom assets to settings."""
+		if not hasattr(self, 'settings'):
+			self.settings = {}
+		self.settings['custom_assets'] = self.custom_assets
+		self._save_settings()
+	
+	def _animate_pets(self):
+		"""Animate the entire scene: pets, window, avatar idle/walk, and random events."""
+		if not hasattr(self, 'avatar_canvas'):
+			return
+		import random, time
+		# Determine canvas bounds (no update_idletasks to prevent flashing)
+		canvas = self.avatar_canvas
+		width = canvas.winfo_width() if canvas.winfo_width() > 10 else 600
+		height = canvas.winfo_height() if canvas.winfo_height() > 10 else 400
+		
+		# Calculate normalized bounds with wall collision
+		wall_depth_norm = 0.2
+		side_wall_width_norm = 0.08
+		margin_x_norm = 60.0 / width
+		margin_y_norm = 60.0 / height
+		
+		# Wall collision boundaries
+		left_boundary = side_wall_width_norm + margin_x_norm
+		right_boundary = 1.0 - side_wall_width_norm - margin_x_norm
+		top_boundary = wall_depth_norm + margin_y_norm
+		bottom_boundary = 1.0 - margin_y_norm
+		
+		# 1) Pets wander with normalized coordinates and wall collision
+		for pet in getattr(self, 'pets', []):
 			if random.random() < 0.3:  # 30% chance to change direction
 				pet["direction"] = random.choice(["left", "right", "up", "down"])
-			
-			# Move in current direction
-			step = 2
+			# Convert pixel step to normalized
+			step_x = 2.0 / width
+			step_y = 2.0 / height
 			if pet["direction"] == "left":
-				pet["x"] = max(60, pet["x"] - step)
+				pet["x"] = max(left_boundary, pet["x"] - step_x)
 			elif pet["direction"] == "right":
-				pet["x"] = min(540, pet["x"] + step)
+				pet["x"] = min(right_boundary, pet["x"] + step_x)
 			elif pet["direction"] == "up":
-				pet["y"] = max(70, pet["y"] - step)
+				pet["y"] = max(top_boundary, pet["y"] - step_y)
 			elif pet["direction"] == "down":
-				pet["y"] = min(350, pet["y"] + step)
+				pet["y"] = min(bottom_boundary, pet["y"] + step_y)
 		
-		# Redraw room with pets
-		if hasattr(self, '_avatar_animation_id'):
-			self.avatar_canvas.after_cancel(self._avatar_animation_id)
-		self._draw_avatar_room()
+		# 2) Window animation (clouds + sun)
+		if hasattr(self, '_scene_window'):
+			# advance sun parameter
+			self._scene_window["sun_t"] = (self._scene_window.get("sun_t", 0.0) + 0.002) % 1.0
+			for cloud in self._scene_window.get("clouds", []):
+				cloud["x"] += cloud.get("speed", 0.003)
+				if cloud["x"] > 1.2:
+					cloud["x"] = -0.25
 		
-		# Continue animation
-		self._avatar_animation_id = self.avatar_canvas.after(100, self._animate_pets)
-	
-		self._save_settings()
+		# 2.5) Animate GIF assets
+		for asset in getattr(self, 'custom_assets', []):
+			if asset.get("is_animated", False):
+				frame_count = asset.get("frame_count", 1)
+				current = asset.get("current_frame", 0)
+				asset["current_frame"] = (current + 1) % frame_count
+		
+		# 3) Avatar idle auto-walk + blinking + random events
+		now = time.time()
+		if getattr(self, '_avatar_auto_move', True) and now - getattr(self, '_last_user_move_time', now) > 3:
+			# Occasionally pick new direction
+			if random.random() < 0.1:
+				self._avatar_state["direction"] = random.choice(["left", "right", "up", "down"])
+			# Small step in current direction (normalized)
+			dx_norm = dy_norm = 0
+			dir = self._avatar_state.get("direction", "down")
+			if dir == "left": dx_norm = -2.0 / width
+			elif dir == "right": dx_norm = 2.0 / width
+			elif dir == "up": dy_norm = -2.0 / height
+			elif dir == "down": dy_norm = 2.0 / height
+			# Apply wall collision boundaries for auto-walk
+			x = max(left_boundary, min(right_boundary, self._avatar_state["x"] + dx_norm))
+			y = max(top_boundary, min(bottom_boundary, self._avatar_state["y"] + dy_norm))
+			self._avatar_state["x"], self._avatar_state["y"] = x, y
+			# advance walk phase for bobbing
+			self._avatar_walk_phase = (self._avatar_walk_phase + 0.3) % (2*3.14159)
+		
+		# Blinking
+		if hasattr(self, '_blink_state'):
+			bs = self._blink_state
+			if not bs.get("active"):
+				bs["ticks_to_next"] = bs.get("ticks_to_next", 30) - 1
+				if bs["ticks_to_next"] <= 0:
+					bs["active"] = True
+					bs["progress"] = 0.0
+			else:
+				# progress 0->1 then finish
+				bs["progress"] += 0.25
+				if bs["progress"] >= 1.0:
+					bs["active"] = False
+					bs["ticks_to_next"] = random.randint(20, 50)
+		
+		# Random event (wave or jump)
+		if hasattr(self, '_random_event'):
+			re = self._random_event
+			if re.get("type") is None and random.random() < 0.02:
+				re["type"] = random.choice(["wave", "jump"]) 
+				re["ticks_left"] = 10
+			else:
+				if re.get("ticks_left", 0) > 0:
+					re["ticks_left"] -= 1
+				else:
+					re["type"] = None
+		
+		# Redraw room directly in animation loop (already scheduled at consistent interval)
+		try:
+			self.avatar_canvas.delete("all")
+			self._draw_avatar_room()
+		except Exception:
+			pass
+		
+		# Continue animation at 120ms (smoother than 100ms, reduces flashing)
+		self._avatar_animation_id = self.avatar_canvas.after(120, self._animate_pets)
+
+	def _request_redraw(self):
+		"""Coalesce redraw requests to avoid flicker and duplicate draws."""
+		if not hasattr(self, 'avatar_canvas'):
+			return
+		# Debounce: only schedule if not already pending
+		if getattr(self, '_redraw_scheduled', False):
+			return
+		self._redraw_scheduled = True
+		self._redraw_after_id = self.avatar_canvas.after(10, self._perform_redraw)
+
+	def _perform_redraw(self):
+		"""Perform a single scene redraw safely."""
+		self._redraw_scheduled = False
+		if not hasattr(self, 'avatar_canvas'):
+			return
+		try:
+			# Clear existing items so objects don't accumulate or drift
+			self.avatar_canvas.delete("all")
+			self._draw_avatar_room()
+		except Exception:
+			pass
 	
 	def _setup_ai_tasks_tab(self):
 		"""Set up the AI Tasks tab with chat interface for task generation."""
